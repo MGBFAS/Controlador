@@ -268,6 +268,13 @@
         let pv_atual = 25.0; // Temperatura ambiente inicial
         const Ts = 1; // Tempo de amostragem (1 segundo)
         
+        // CORREÇÃO: Instanciar o controlador UMA ÚNICA VEZ fora do ciclo!
+        const pid = new ControladorDigitalPID(1.5, 15, 2, Ts, false);
+        
+        // Inicializar a memória com a PV atual para evitar solavancos no primeiro ciclo
+        pid.pv_k1 = pv_atual;
+        pid.pv_k2 = pv_atual;
+
         // Inicializa gráfico
         const ctx = document.getElementById('trendChart').getContext('2d');
         const trendChart = new Chart(ctx, {
@@ -294,18 +301,16 @@
 
         // Loop de Controle
         setInterval(() => {
-            // Lê parâmetros da tela
-            const kp = parseFloat(document.getElementById('inp-kp').value);
-            const ti = parseFloat(document.getElementById('inp-ti').value);
-            const td = parseFloat(document.getElementById('inp-td').value);
-            const acaoDireta = document.getElementById('inp-acao').value === 'direta';
+            // Lê parâmetros da tela e ATUALIZA a instância existente
+            pid.Kp = parseFloat(document.getElementById('inp-kp').value);
+            pid.Ti = parseFloat(document.getElementById('inp-ti').value);
+            pid.Td = parseFloat(document.getElementById('inp-td').value);
+            pid.dir = document.getElementById('inp-acao').value === 'direta' ? -1 : 1;
+            
             let sp_input = parseFloat(document.getElementById('inp-sp').value);
             const mv_man_input = parseFloat(document.getElementById('inp-mv-man').value);
 
-            // Instancia/Atualiza controlador
-            const pid = new ControladorDigitalPID(kp, ti, td, Ts, acaoDireta);
-            
-            // Executa o cálculo PID
+            // Executa o cálculo PID preservando o histórico guardado na instância
             const resultado = pid.calcular(sp_input, pv_atual, isAuto, mv_man_input, true);
             const mv_aplicada = resultado.mv;
 
@@ -315,7 +320,6 @@
             }
 
             // Simulação da Planta (Função de Transferência de Primeira Ordem Simples)
-            // Para simular aquecimento ou resfriamento baseado na ação e MV.
             let ganhoPlanta = 0.5; // O quanto 100% de MV afeta a PV
             let constanteTempo = 0.95; // Inércia térmica
             
