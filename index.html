@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IHM de Controle - Automação Industrial</title>
-    <!-- Biblioteca Chart.js para o gráfico de tendências -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
@@ -12,10 +11,10 @@
             --panel-bg: #2d2d30;
             --text-color: #d4d4d4;
             --accent: #007acc;
-            --accent-hover: #0098ff;
             --danger: #d16969;
             --success: #6a9955;
             --border: #3e3e42;
+            --warn: #d7ba7d;
         }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -27,90 +26,41 @@
             flex-direction: column;
             align-items: center;
         }
-        h1 {
-            color: var(--accent);
-            text-align: center;
-            margin-bottom: 5px;
-        }
-        .subtitle {
-            text-align: center;
-            font-size: 0.9em;
-            color: #888;
-            margin-bottom: 20px;
-        }
+        h1 { color: var(--accent); text-align: center; margin-bottom: 5px; }
+        .subtitle { text-align: center; font-size: 0.9em; color: #888; margin-bottom: 20px; }
         .dashboard {
-            display: grid;
-            grid-template-columns: 300px 1fr;
-            gap: 20px;
-            width: 100%;
-            max-width: 1200px;
+            display: grid; grid-template-columns: 320px 1fr; gap: 20px; width: 100%; max-width: 1250px;
         }
         .panel {
-            background-color: var(--panel-bg);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 15px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            background-color: var(--panel-bg); border: 1px solid var(--border);
+            border-radius: 8px; padding: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
         }
-        .panel h2 {
-            font-size: 1.2em;
-            margin-top: 0;
-            border-bottom: 1px solid var(--border);
-            padding-bottom: 10px;
-        }
-        .form-group {
-            margin-bottom: 10px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .form-group label {
-            font-size: 0.9em;
-        }
+        .panel h2 { font-size: 1.2em; margin-top: 0; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+        .form-group { margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .form-group label { font-size: 0.9em; }
         .form-group input, .form-group select {
-            width: 80px;
-            background-color: #1e1e1e;
-            color: #fff;
-            border: 1px solid var(--border);
-            padding: 5px;
-            border-radius: 4px;
+            width: 80px; background-color: #1e1e1e; color: #fff;
+            border: 1px solid var(--border); padding: 5px; border-radius: 4px;
         }
         .btn-toggle {
-            width: 100%;
-            padding: 10px;
-            margin-top: 10px;
-            border: none;
-            border-radius: 4px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background 0.3s;
+            width: 100%; padding: 10px; margin-top: 10px; border: none;
+            border-radius: 4px; font-weight: bold; cursor: pointer; transition: background 0.3s;
         }
         .btn-auto { background-color: var(--success); color: white; }
         .btn-manual { background-color: var(--danger); color: white; }
         
-        .displays {
-            display: flex;
-            justify-content: space-between;
-            gap: 10px;
-            margin-bottom: 15px;
-        }
+        .displays { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 15px; }
         .display-box {
-            flex: 1;
-            background-color: #000;
-            border: 2px solid var(--border);
-            border-radius: 6px;
-            padding: 10px;
-            text-align: center;
+            flex: 1; background-color: #000; border: 2px solid var(--border);
+            border-radius: 6px; padding: 10px; text-align: center;
         }
         .display-box .label { font-size: 0.8em; color: #888; }
         .display-box .value { font-size: 1.5em; font-family: 'Courier New', Courier, monospace; color: #0f0; }
         .val-sp { color: #00ffff !important; }
         .val-mv { color: #ff00ff !important; }
+        .val-err { color: var(--warn) !important; }
 
-        canvas {
-            background-color: #1e1e1e;
-            border-radius: 4px;
-        }
+        canvas { background-color: #1e1e1e; border-radius: 4px; }
     </style>
 </head>
 <body>
@@ -119,25 +69,12 @@
     <div class="subtitle">Sintonia PID e Simulação de Processo</div>
 
     <div class="dashboard">
-        <!-- Painel de Configurações -->
         <div class="panel">
             <h2>3. Parâmetros (PID)</h2>
-            <div class="form-group">
-                <label title="Ganho Proporcional">Kp:</label>
-                <input type="number" id="inp-kp" value="1.5" step="0.1">
-            </div>
-            <div class="form-group">
-                <label title="Tempo Integral (s)">Ti (s):</label>
-                <input type="number" id="inp-ti" value="15" step="1">
-            </div>
-            <div class="form-group">
-                <label title="Tempo Derivativo (s)">Td (s):</label>
-                <input type="number" id="inp-td" value="2" step="0.5">
-            </div>
-            <div class="form-group">
-                <label title="Tempo de Amostragem (s)">Ts (s):</label>
-                <input type="number" id="inp-ts" value="1" step="0.1" disabled>
-            </div>
+            <div class="form-group"><label>Kp:</label><input type="number" id="inp-kp" value="1.5" step="0.1"></div>
+            <div class="form-group"><label>Ti (s):</label><input type="number" id="inp-ti" value="15" step="1"></div>
+            <div class="form-group"><label>Td (s):</label><input type="number" id="inp-td" value="2" step="0.5"></div>
+            <div class="form-group"><label>Ts (s):</label><input type="number" id="inp-ts" value="1" step="0.1" disabled></div>
             
             <h2>9. Ação de Controle</h2>
             <div class="form-group">
@@ -150,34 +87,30 @@
 
             <h2>4. Transferência A/M</h2>
             <button id="btn-am" class="btn-toggle btn-auto">MODO AUTOMÁTICO</button>
-            
-            <div class="form-group" style="margin-top: 15px;">
-                <label title="Setpoint">Setpoint (SP):</label>
-                <input type="number" id="inp-sp" value="50" step="1">
-            </div>
-            <div class="form-group">
-                <label title="Variável Manipulada Manual">MV Manual (%):</label>
-                <input type="number" id="inp-mv-man" value="0" step="1" disabled>
-            </div>
-            
+            <div class="form-group" style="margin-top: 15px;"><label>Setpoint (SP):</label><input type="number" id="inp-sp" value="50" step="1"></div>
+            <div class="form-group"><label>MV Manual (%):</label><input type="number" id="inp-mv-man" value="0" step="1" disabled></div>
             <p style="font-size: 0.8em; color: #888; margin-top: 20px;">
-                * Em modo Manual, a função <strong>Tracking</strong> fará o SP seguir a VP atual para garantir retorno <strong>Bumpless</strong>.
+                * <strong>Bumpless e Tracking</strong> garantem transferência suave entre A/M.
             </p>
         </div>
 
-        <!-- Painel de Operação e Gráfico -->
         <div class="panel">
             <div class="displays">
                 <div class="display-box">
-                    <div class="label">PV (Variável de Processo)</div>
+                    <div class="label">PV (Processo)</div>
                     <div class="value" id="disp-pv">0.00</div>
                 </div>
                 <div class="display-box">
                     <div class="label">SP (Setpoint)</div>
                     <div class="value val-sp" id="disp-sp">50.00</div>
                 </div>
+                <!-- NOVO MOSTRADOR DE ERRO -->
                 <div class="display-box">
-                    <div class="label">MV (Variável Manipulada)</div>
+                    <div class="label">Erro (SP - PV)</div>
+                    <div class="value val-err" id="disp-erro">0.00</div>
+                </div>
+                <div class="display-box">
+                    <div class="label">MV (Manipulada)</div>
                     <div class="value val-mv" id="disp-mv">0.00 %</div>
                 </div>
             </div>
@@ -186,101 +119,97 @@
     </div>
 
     <script>
-        // ==========================================
-        // REQUISITOS 1, 2, 7, 8, 10 - CLASSE DO CONTROLADOR
-        // ==========================================
         class ControladorDigitalPID {
             constructor(Kp, Ti, Td, Ts, acaoDireta = false, outMin = 0, outMax = 100) {
                 this.Kp = Kp;
                 this.Ti = Ti;
                 this.Td = Td;
                 this.Ts = Ts;
-                
                 this.outMin = outMin;
-                this.outMax = outMax; // 7. Anti reset wind-up
-                
-                // 9. Ação Direta ou Reversa (1 = Reversa/Aquecimento, -1 = Direta/Resfriamento)
+                this.outMax = outMax; 
                 this.dir = acaoDireta ? -1 : 1; 
 
-                // 2. Memória de estados (Segunda Ordem)
+                // Memória para a Equação de Diferenças (k-1 e k-2)
                 this.e_k1 = 0;
+                this.e_k2 = 0; 
                 this.pv_k1 = 0;
                 this.pv_k2 = 0;
                 this.u_k1 = 0;
             }
 
-            // 1. Algoritmo Incremental
             calcular(sp, pv, isAuto, manualMv, spTrackingAtivo = true) {
-                // 4. Transferência Automático / Manual
+                // Cálculo do Erro atual
+                let erroReal = sp - pv;
+                let e_k = this.dir * erroReal;
+
                 if (!isAuto) {
-                    // 6. Função Tracking para SP e VM
                     if (spTrackingAtivo) sp = pv; 
                     let u_manual = Math.max(this.outMin, Math.min(this.outMax, manualMv));
                     
-                    // 5. Função Bumpless (atualiza a memória com o estado atual do manual)
                     this.u_k1 = u_manual; 
                     this.e_k1 = this.dir * (sp - pv);
+                    this.e_k2 = this.e_k1;
                     this.pv_k1 = pv;
                     this.pv_k2 = pv;
                     
-                    return { mv: u_manual, novoSp: sp }; 
+                    return { mv: u_manual, novoSp: sp, erro: erroReal }; 
                 }
 
-                let e_k = this.dir * (sp - pv);
+                // =========================================================
+                // DEFINIÇÃO DOS COEFICIENTES (a0, a1, a2)
+                // Se a fórmula m(k) = a0*e(k) + a1*e(k-1) + a2*e(k-2) fosse 
+                // aplicada integralmente ao erro, os coeficientes seriam:
+                // =========================================================
+                let a0 = this.Kp * (1 + (this.Ts / this.Ti) + (this.Td / this.Ts));
+                let a1 = -this.Kp * (1 + 2 * (this.Td / this.Ts));
+                let a2 = this.Kp * (this.Td / this.Ts);
 
-                // Delta Proporcional
-                let deltaP = this.Kp * (e_k - this.e_k1);
+                // =========================================================
+                // ADAPTAÇÃO PARA O REQUISITO 10 (Derivada SOMENTE na PV)
+                // Desmembramos os coeficientes. O 'a2' (parte derivativa) e 
+                // as componentes derivativas de a0 e a1 atuarão apenas sobre a PV.
+                // =========================================================
+                
+                // Parte Proporcional e Integral (Aplicada ao erro e_k)
+                let a0_PI = this.Kp * (1 + (this.Ts / this.Ti));
+                let a1_PI = -this.Kp;
+                let deltaPI = (a0_PI * e_k) + (a1_PI * this.e_k1);
 
-                // Delta Integral (8. Rampa em reposta ao degrau)
-                let deltaI = 0;
-                if (this.Ti > 0) {
-                    deltaI = this.Kp * (this.Ts / this.Ti) * e_k;
-                }
+                // Parte Derivativa (Aplicada à PV, utilizando a base do coeficiente a2)
+                // Substituímos o erro e(k) pela -PV(k) para anular o SP do cálculo derivativo.
+                let deltaD = -this.dir * a2 * (pv - 2 * this.pv_k1 + this.pv_k2);
 
-                // Delta Derivativo (10. Ação derivativa aplicada SOMENTE a VP)
-                let deltaD = 0;
-                if (this.Td > 0) {
-                    // Em vez de derivar o erro, deriva-se a VP. O sinal negativo evita o tranco no SP.
-                    deltaD = -this.dir * this.Kp * (this.Td / this.Ts) * (pv - 2 * this.pv_k1 + this.pv_k2);
-                }
-
-                let deltaU = deltaP + deltaI + deltaD;
+                // Somatória e cálculo de m(k) = m(k-1) + ΔU
+                let deltaU = deltaPI + deltaD;
                 let u_k = this.u_k1 + deltaU;
 
-                // 7. Anti Reset Wind-up (Trava a saída)
+                // Anti Reset Wind-up
                 u_k = Math.max(this.outMin, Math.min(this.outMax, u_k));
 
-                // Atualiza a memória de Segunda Ordem
+                // Atualização da memória (k-1 recebe k, k-2 recebe k-1)
+                this.e_k2 = this.e_k1;
                 this.e_k1 = e_k;
                 this.pv_k2 = this.pv_k1;
                 this.pv_k1 = pv;
                 this.u_k1 = u_k;
 
-                return { mv: u_k, novoSp: sp };
+                return { mv: u_k, novoSp: sp, erro: erroReal };
             }
         }
-
-        // ==========================================
-        // SIMULAÇÃO DA PLANTA E INTERFACE (IHM)
-        // ==========================================
         
         let isAuto = true;
-        let pv_atual = 25.0; // Temperatura ambiente inicial
-        const Ts = 1; // Tempo de amostragem (1 segundo)
+        let pv_atual = 25.0; 
+        const Ts = 1; 
         
-        // CORREÇÃO: Instanciar o controlador UMA ÚNICA VEZ fora do ciclo!
         const pid = new ControladorDigitalPID(1.5, 15, 2, Ts, false);
-        
-        // Inicializar a memória com a PV atual para evitar solavancos no primeiro ciclo
         pid.pv_k1 = pv_atual;
         pid.pv_k2 = pv_atual;
 
-        // Inicializa gráfico
         const ctx = document.getElementById('trendChart').getContext('2d');
         const trendChart = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: Array(60).fill(''), // 60 amostras no eixo X
+                labels: Array(60).fill(''),
                 datasets: [
                     { label: 'PV', borderColor: '#00ff00', data: Array(60).fill(25), pointRadius: 0, tension: 0.1 },
                     { label: 'SP', borderColor: '#00ffff', data: Array(60).fill(50), pointRadius: 0, borderDash: [5, 5] },
@@ -288,8 +217,7 @@
                 ]
             },
             options: {
-                responsive: true,
-                animation: false,
+                responsive: true, animation: false,
                 scales: {
                     y: { min: 0, max: 100, title: { display: true, text: 'Variáveis (PV / SP)', color: '#fff' }, grid: { color: '#333' } },
                     y1: { min: 0, max: 100, position: 'right', title: { display: true, text: 'MV (%)', color: '#fff' }, grid: { drawOnChartArea: false } },
@@ -299,9 +227,7 @@
             }
         });
 
-        // Loop de Controle
         setInterval(() => {
-            // Lê parâmetros da tela e ATUALIZA a instância existente
             pid.Kp = parseFloat(document.getElementById('inp-kp').value);
             pid.Ti = parseFloat(document.getElementById('inp-ti').value);
             pid.Td = parseFloat(document.getElementById('inp-td').value);
@@ -310,50 +236,36 @@
             let sp_input = parseFloat(document.getElementById('inp-sp').value);
             const mv_man_input = parseFloat(document.getElementById('inp-mv-man').value);
 
-            // Executa o cálculo PID preservando o histórico guardado na instância
             const resultado = pid.calcular(sp_input, pv_atual, isAuto, mv_man_input, true);
             const mv_aplicada = resultado.mv;
 
-            // Atualiza o SP na interface se a função Tracking tiver forçado uma mudança
             if (!isAuto && sp_input !== resultado.novoSp) {
                 document.getElementById('inp-sp').value = resultado.novoSp.toFixed(1);
             }
 
-            // Simulação da Planta (Função de Transferência de Primeira Ordem Simples)
-            let ganhoPlanta = 0.5; // O quanto 100% de MV afeta a PV
-            let constanteTempo = 0.95; // Inércia térmica
-            
-            let perturbacao = (Math.random() - 0.5) * 0.5; // Ruído de leitura
+            let ganhoPlanta = 0.5;
+            let constanteTempo = 0.95; 
+            let perturbacao = (Math.random() - 0.5) * 0.5; 
             
             if(document.getElementById('inp-acao').value === 'reversa'){
-                // Aquecimento: MV aumenta a PV, tende a voltar à temp ambiente (25)
                 pv_atual = (pv_atual * constanteTempo) + (25 * (1 - constanteTempo)) + (mv_aplicada * ganhoPlanta * (1 - constanteTempo)) + perturbacao;
             } else {
-                // Resfriamento: MV diminui a PV, tende a voltar à temp ambiente (80)
                 let tempAmbienteResfriamento = 80;
                 pv_atual = (pv_atual * constanteTempo) + (tempAmbienteResfriamento * (1 - constanteTempo)) - (mv_aplicada * ganhoPlanta * (1 - constanteTempo)) + perturbacao;
             }
 
-            // Atualiza Displays
             document.getElementById('disp-pv').innerText = pv_atual.toFixed(2);
             document.getElementById('disp-sp').innerText = resultado.novoSp.toFixed(2);
+            document.getElementById('disp-erro').innerText = resultado.erro.toFixed(2);
             document.getElementById('disp-mv').innerText = mv_aplicada.toFixed(2) + ' %';
 
-            // Atualiza Gráfico
-            trendChart.data.datasets[0].data.shift();
-            trendChart.data.datasets[0].data.push(pv_atual);
-            
-            trendChart.data.datasets[1].data.shift();
-            trendChart.data.datasets[1].data.push(resultado.novoSp);
-            
-            trendChart.data.datasets[2].data.shift();
-            trendChart.data.datasets[2].data.push(mv_aplicada);
-            
+            trendChart.data.datasets[0].data.shift(); trendChart.data.datasets[0].data.push(pv_atual);
+            trendChart.data.datasets[1].data.shift(); trendChart.data.datasets[1].data.push(resultado.novoSp);
+            trendChart.data.datasets[2].data.shift(); trendChart.data.datasets[2].data.push(mv_aplicada);
             trendChart.update();
 
         }, Ts * 1000);
 
-        // Lógica dos Botões da Interface
         const btnAM = document.getElementById('btn-am');
         const inpMvMan = document.getElementById('inp-mv-man');
         const inpSp = document.getElementById('inp-sp');
@@ -369,9 +281,7 @@
                 btnAM.className = 'btn-toggle btn-manual';
                 btnAM.innerText = 'MODO MANUAL';
                 inpMvMan.disabled = false;
-                inpSp.disabled = true; // Desabilita SP porque o Tracking fará ele seguir a PV
-                
-                // O Tracking de MV inicializa o campo manual com a MV do momento em que desligou o automático
+                inpSp.disabled = true; 
                 inpMvMan.value = parseFloat(document.getElementById('disp-mv').innerText).toFixed(1);
             }
         });
