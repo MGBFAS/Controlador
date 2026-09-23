@@ -7,14 +7,9 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
-            --bg-color: #1e1e1e;
-            --panel-bg: #2d2d30;
-            --text-color: #d4d4d4;
-            --accent: #007acc;
-            --danger: #d16969;
-            --success: #6a9955;
-            --border: #3e3e42;
-            --warn: #d7ba7d;
+            --bg-color: #1e1e1e; --panel-bg: #2d2d30; --text-color: #d4d4d4;
+            --accent: #007acc; --danger: #d16969; --success: #6a9955;
+            --border: #3e3e42; --warn: #d7ba7d;
         }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -27,9 +22,10 @@
         .panel {
             background-color: var(--panel-bg); border: 1px solid var(--border);
             border-radius: 8px; padding: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            display: flex; flex-direction: column;
         }
-        .panel h2 { font-size: 1.1em; margin-top: 0; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
-        .form-group { margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .panel h2 { font-size: 1.0em; margin-top: 0; border-bottom: 1px solid var(--border); padding-bottom: 10px; color: var(--accent); }
+        .form-group { margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
         .form-group label { font-size: 0.85em; }
         .form-group input, .form-group select {
             width: 85px; background-color: #1e1e1e; color: #fff;
@@ -39,7 +35,7 @@
             border: 1px dashed var(--border); padding: 10px; border-radius: 6px; margin-bottom: 15px; background-color: #252526;
         }
         .btn-toggle {
-            width: 100%; padding: 10px; margin-top: 5px; border: none;
+            width: 100%; padding: 10px; margin-top: 5px; margin-bottom: 15px; border: none;
             border-radius: 4px; font-weight: bold; cursor: pointer; transition: background 0.3s;
         }
         .btn-auto { background-color: var(--success); color: white; }
@@ -56,19 +52,30 @@
         .val-mv { color: #ff00ff !important; }
         .val-err { color: var(--warn) !important; }
 
-        canvas { background-color: #1e1e1e; border-radius: 4px; }
+        canvas { background-color: #1e1e1e; border-radius: 4px; flex-grow: 1; }
+        .history-controls {
+            display: flex; align-items: center; justify-content: space-between; gap: 15px;
+            margin-top: 15px; background-color: #1e1e1e; padding: 10px 15px;
+            border-radius: 6px; border: 1px solid var(--border);
+        }
+        .history-controls input[type="range"] { flex: 1; accent-color: var(--accent); cursor: pointer; }
+        .history-controls label { font-size: 0.85em; display: flex; align-items: center; gap: 8px; cursor: pointer; }
         .disabled-box { opacity: 0.5; pointer-events: none; }
     </style>
 </head>
 <body>
 
-    <h1>IHM - Controlador Digital Incremental</h1>
-    <div class="subtitle">Sintonia PID e Simulação de Processo</div>
+    <h1>IHM - Controlador Digital Genérico</h1>
+    <div class="subtitle">Sintonia PID e Simulação de Processo Contínuo</div>
 
     <div class="dashboard">
         <div class="panel">
-            <h2>3. Parâmetros do Controlador</h2>
-            
+            <h2>PARÂMETROS DA PLANTA (PROCESSO)</h2>
+            <div class="form-group"><label title="Ganho Estático da Planta">Ganho (K):</label><input type="number" id="inp-pl-k" value="1.0" step="0.1"></div>
+            <div class="form-group"><label title="Inércia / Constante de tempo (s)">Tempo (τ):</label><input type="number" id="inp-pl-tau" value="10" step="1"></div>
+            <div class="form-group"><label title="Valor da PV quando MV = 0%">Bias (Repouso):</label><input type="number" id="inp-pl-bias" value="0" step="1"></div>
+
+            <h2 style="margin-top: 15px;">SINTONIA DO CONTROLADOR</h2>
             <div class="form-group">
                 <label>Modo de Sintonia:</label>
                 <select id="inp-modo-sintonia">
@@ -90,17 +97,17 @@
                 <div class="form-group"><label>a2:</label><input type="number" id="inp-a2" value="0.00" step="0.01"></div>
             </div>
             
-            <h2>9. Ação / Transferência A/M</h2>
+            <h2>OPERAÇÃO & TRANSFERÊNCIA</h2>
             <div class="form-group">
-                <label>Ação:</label>
+                <label>Ação do Controlador:</label>
                 <select id="inp-acao">
-                    <option value="reversa">Reversa (Aquecer)</option>
-                    <option value="direta">Direta (Resfriar)</option>
+                    <option value="reversa">Reversa (Ex: Aquecimento)</option>
+                    <option value="direta">Direta (Ex: Resfriamento)</option>
                 </select>
             </div>
 
             <button id="btn-am" class="btn-toggle btn-auto">MODO AUTOMÁTICO</button>
-            <div class="form-group" style="margin-top: 15px;"><label>Setpoint (SP):</label><input type="number" id="inp-sp" value="50" step="1"></div>
+            <div class="form-group"><label>Setpoint (SP):</label><input type="number" id="inp-sp" value="50" step="1"></div>
             <div class="form-group"><label>MV Manual (%):</label><input type="number" id="inp-mv-man" value="0" step="1" disabled></div>
         </div>
 
@@ -111,19 +118,21 @@
                 <div class="display-box"><div class="label">Erro (SP - PV)</div><div class="value val-err" id="disp-erro">0.00</div></div>
                 <div class="display-box"><div class="label">MV (Manipulada)</div><div class="value val-mv" id="disp-mv">0.00 %</div></div>
             </div>
-            <canvas id="trendChart" width="800" height="400"></canvas>
+            <canvas id="trendChart" width="800" height="350"></canvas>
+            
+            <div class="history-controls">
+                <label><input type="checkbox" id="chk-realtime" checked> Tempo Real</label>
+                <label>Janela: <input type="number" id="inp-janela" value="60" min="10" max="600" step="10" style="width:60px;"></label>
+                <input type="range" id="slider-hist" min="0" max="0" value="0" disabled>
+            </div>
         </div>
     </div>
 
     <script>
         class ControladorDigitalPID {
             constructor(outMin = 0, outMax = 100) {
-                this.outMin = outMin;
-                this.outMax = outMax; 
-                this.e_k1 = 0;
-                this.pv_k1 = 0;
-                this.pv_k2 = 0;
-                this.u_k1 = 0;
+                this.outMin = outMin; this.outMax = outMax; 
+                this.e_k1 = 0; this.pv_k1 = 0; this.pv_k2 = 0; this.u_k1 = 0;
             }
 
             calcular(sp, pv, a0, a1, a2, dir, isAuto, manualMv, spTrackingAtivo = true) {
@@ -133,145 +142,154 @@
                 if (!isAuto) {
                     if (spTrackingAtivo) sp = pv; 
                     let u_manual = Math.max(this.outMin, Math.min(this.outMax, manualMv));
-                    
                     this.u_k1 = u_manual; 
                     this.e_k1 = dir * (sp - pv);
-                    this.pv_k1 = pv;
-                    this.pv_k2 = pv;
-                    
+                    this.pv_k1 = pv; this.pv_k2 = pv;
                     return { mv: u_manual, novoSp: sp, erro: erroReal }; 
                 }
 
-                // Adaptação dos coeficientes para respeitar o Requisito 10 (Derivada na VP)
                 let a0_PI = a0 - a2;
                 let a1_PI = a1 + 2 * a2;
-
-                // Parcela PI atua sobre o Erro
                 let deltaPI = (a0_PI * e_k) + (a1_PI * this.e_k1);
-
-                // Parcela D atua sobre a Variável de Processo (PV)
                 let deltaD = -dir * a2 * (pv - 2 * this.pv_k1 + this.pv_k2);
 
                 let deltaU = deltaPI + deltaD;
                 let u_k = this.u_k1 + deltaU;
-
-                // Anti Reset Wind-up
                 u_k = Math.max(this.outMin, Math.min(this.outMax, u_k));
 
-                // Atualização da memória 
-                this.e_k1 = e_k;
-                this.pv_k2 = this.pv_k1;
-                this.pv_k1 = pv;
-                this.u_k1 = u_k;
+                this.e_k1 = e_k; this.pv_k2 = this.pv_k1; this.pv_k1 = pv; this.u_k1 = u_k;
 
                 return { mv: u_k, novoSp: sp, erro: erroReal };
             }
         }
         
         let isAuto = true;
-        let pv_atual = 25.0; 
+        let pv_atual = 0.0; // Inicia no zero genérico
         const Ts = 1; 
         
         const pid = new ControladorDigitalPID(0, 100);
-        pid.pv_k1 = pv_atual;
-        pid.pv_k2 = pv_atual;
+        pid.pv_k1 = pv_atual; pid.pv_k2 = pv_atual;
+
+        const maxHistorico = 3600; let tickCount = 0;
+        let hist_labels = [], hist_pv = [], hist_sp = [], hist_mv = [];
 
         const ctx = document.getElementById('trendChart').getContext('2d');
         const trendChart = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: Array(60).fill(''),
+                labels: [],
                 datasets: [
-                    { label: 'PV', borderColor: '#00ff00', data: Array(60).fill(25), pointRadius: 0, tension: 0.1 },
-                    { label: 'SP', borderColor: '#00ffff', data: Array(60).fill(50), pointRadius: 0, borderDash: [5, 5] },
-                    { label: 'MV (%)', borderColor: '#ff00ff', data: Array(60).fill(0), pointRadius: 0, yAxisID: 'y1' }
+                    { label: 'PV', borderColor: '#00ff00', data: [], pointRadius: 0, tension: 0.1 },
+                    { label: 'SP', borderColor: '#00ffff', data: [], pointRadius: 0, borderDash: [5, 5] },
+                    { label: 'MV (%)', borderColor: '#ff00ff', data: [], pointRadius: 0, yAxisID: 'y1' }
                 ]
             },
             options: {
                 responsive: true, animation: false,
                 scales: {
-                    y: { min: 0, max: 100, title: { display: true, text: 'Variáveis (PV / SP)', color: '#fff' }, grid: { color: '#333' } },
+                    y: { title: { display: true, text: 'Variáveis (PV / SP)', color: '#fff' }, grid: { color: '#333' } },
                     y1: { min: 0, max: 100, position: 'right', title: { display: true, text: 'MV (%)', color: '#fff' }, grid: { drawOnChartArea: false } },
-                    x: { grid: { color: '#333' } }
+                    x: { grid: { color: '#333' }, ticks: { maxTicksLimit: 15 } }
                 },
                 plugins: { legend: { labels: { color: '#fff' } } }
             }
         });
 
-        // Lógica de alternância de modos
         const modoSintonia = document.getElementById('inp-modo-sintonia');
         const boxPid = document.getElementById('box-pid');
         const boxCoef = document.getElementById('box-coef');
-        const inpA0 = document.getElementById('inp-a0');
-        const inpA1 = document.getElementById('inp-a1');
-        const inpA2 = document.getElementById('inp-a2');
+        const chkRealtime = document.getElementById('chk-realtime');
+        const inpJanela = document.getElementById('inp-janela');
+        const sliderHist = document.getElementById('slider-hist');
 
         modoSintonia.addEventListener('change', (e) => {
             if(e.target.value === 'pid') {
-                boxPid.classList.remove('disabled-box');
-                boxCoef.classList.add('disabled-box');
+                boxPid.classList.remove('disabled-box'); boxCoef.classList.add('disabled-box');
             } else {
-                boxPid.classList.add('disabled-box');
-                boxCoef.classList.remove('disabled-box');
+                boxPid.classList.add('disabled-box'); boxCoef.classList.remove('disabled-box');
             }
         });
+
+        sliderHist.addEventListener('input', () => { chkRealtime.checked = false; atualizarGraficoHistorico(); });
+        inpJanela.addEventListener('change', atualizarGraficoHistorico);
+        chkRealtime.addEventListener('change', atualizarGraficoHistorico);
+
+        function atualizarGraficoHistorico() {
+            let janela = parseInt(inpJanela.value) || 60;
+            let total = hist_labels.length;
+            sliderHist.max = Math.max(0, total - janela);
+            if(chkRealtime.checked) { sliderHist.value = sliderHist.max; sliderHist.disabled = true; } 
+            else { sliderHist.disabled = false; }
+            let start = parseInt(sliderHist.value);
+            let end = start + janela;
+            if (total < janela) { start = 0; end = total; }
+            trendChart.data.labels = hist_labels.slice(start, end);
+            trendChart.data.datasets[0].data = hist_pv.slice(start, end);
+            trendChart.data.datasets[1].data = hist_sp.slice(start, end);
+            trendChart.data.datasets[2].data = hist_mv.slice(start, end);
+            trendChart.update('none'); 
+        }
 
         setInterval(() => {
             let a0, a1, a2;
             
-            // Verifica o modo de entrada escolhido
             if (modoSintonia.value === 'pid') {
                 const Kp = parseFloat(document.getElementById('inp-kp').value);
                 const Ti = parseFloat(document.getElementById('inp-ti').value);
                 const Td = parseFloat(document.getElementById('inp-td').value);
-                
-                // Converte Kp, Ti, Td para a0, a1, a2
                 a0 = Kp * (1 + (Ts / Ti) + (Td / Ts));
                 a1 = -Kp * (1 + 2 * (Td / Ts));
                 a2 = Kp * (Td / Ts);
-
-                // Exibe os valores calculados nos inputs bloqueados
-                inpA0.value = a0.toFixed(4);
-                inpA1.value = a1.toFixed(4);
-                inpA2.value = a2.toFixed(4);
+                document.getElementById('inp-a0').value = a0.toFixed(4);
+                document.getElementById('inp-a1').value = a1.toFixed(4);
+                document.getElementById('inp-a2').value = a2.toFixed(4);
             } else {
-                // Lê diretamente dos inputs de a0, a1, a2
-                a0 = parseFloat(inpA0.value);
-                a1 = parseFloat(inpA1.value);
-                a2 = parseFloat(inpA2.value);
+                a0 = parseFloat(document.getElementById('inp-a0').value);
+                a1 = parseFloat(document.getElementById('inp-a1').value);
+                a2 = parseFloat(document.getElementById('inp-a2').value);
             }
 
             let dir = document.getElementById('inp-acao').value === 'direta' ? -1 : 1;
             let sp_input = parseFloat(document.getElementById('inp-sp').value);
             const mv_man_input = parseFloat(document.getElementById('inp-mv-man').value);
 
-            // Passa os coeficientes diretamente para a classe
             const resultado = pid.calcular(sp_input, pv_atual, a0, a1, a2, dir, isAuto, mv_man_input, true);
             const mv_aplicada = resultado.mv;
 
-            if (!isAuto && sp_input !== resultado.novoSp) {
-                document.getElementById('inp-sp').value = resultado.novoSp.toFixed(1);
-            }
+            if (!isAuto && sp_input !== resultado.novoSp) { document.getElementById('inp-sp').value = resultado.novoSp.toFixed(1); }
 
-            let ganhoPlanta = 0.5;
-            let constanteTempo = 0.95; 
-            let perturbacao = (Math.random() - 0.5) * 0.5; 
+            // ==========================================
+            // SIMULAÇÃO GENÉRICA DE PLANTA G(s) = K / (τs + 1)
+            // ==========================================
+            let k_pl = parseFloat(document.getElementById('inp-pl-k').value);
+            let tau_pl = parseFloat(document.getElementById('inp-pl-tau').value);
+            let bias_pl = parseFloat(document.getElementById('inp-pl-bias').value);
             
-            if(dir === 1) { // Reversa
-                pv_atual = (pv_atual * constanteTempo) + (25 * (1 - constanteTempo)) + (mv_aplicada * ganhoPlanta * (1 - constanteTempo)) + perturbacao;
-            } else { // Direta
-                pv_atual = (pv_atual * constanteTempo) + (80 * (1 - constanteTempo)) - (mv_aplicada * ganhoPlanta * (1 - constanteTempo)) + perturbacao;
-            }
+            if (tau_pl < 0.1) tau_pl = 0.1; // Evita divisão por zero
+            
+            // Fator de decaimento Exponencial (ZOH)
+            let alpha = Math.exp(-Ts / tau_pl);
+            let perturbacao = (Math.random() - 0.5) * 0.1; // Ruído leve
+            
+            // Valor de repouso para o qual a PV tende dado a MV atual
+            let pv_regime = (k_pl * mv_aplicada) + bias_pl;
+            
+            // Atualização contínua da PV
+            pv_atual = (pv_atual * alpha) + (pv_regime * (1 - alpha)) + perturbacao;
+            // ==========================================
 
             document.getElementById('disp-pv').innerText = pv_atual.toFixed(2);
             document.getElementById('disp-sp').innerText = resultado.novoSp.toFixed(2);
             document.getElementById('disp-erro').innerText = resultado.erro.toFixed(2);
             document.getElementById('disp-mv').innerText = mv_aplicada.toFixed(2) + ' %';
 
-            trendChart.data.datasets[0].data.shift(); trendChart.data.datasets[0].data.push(pv_atual);
-            trendChart.data.datasets[1].data.shift(); trendChart.data.datasets[1].data.push(resultado.novoSp);
-            trendChart.data.datasets[2].data.shift(); trendChart.data.datasets[2].data.push(mv_aplicada);
-            trendChart.update();
+            tickCount++;
+            let m = Math.floor(tickCount / 60).toString().padStart(2, '0');
+            let s = (tickCount % 60).toString().padStart(2, '0');
+            
+            hist_labels.push(`${m}:${s}`); hist_pv.push(pv_atual); hist_sp.push(resultado.novoSp); hist_mv.push(mv_aplicada);
+            if(hist_labels.length > maxHistorico) { hist_labels.shift(); hist_pv.shift(); hist_sp.shift(); hist_mv.shift(); }
+            atualizarGraficoHistorico();
 
         }, Ts * 1000);
 
@@ -282,15 +300,11 @@
         btnAM.addEventListener('click', () => {
             isAuto = !isAuto;
             if (isAuto) {
-                btnAM.className = 'btn-toggle btn-auto';
-                btnAM.innerText = 'MODO AUTOMÁTICO';
-                inpMvMan.disabled = true;
-                inpSp.disabled = false;
+                btnAM.className = 'btn-toggle btn-auto'; btnAM.innerText = 'MODO AUTOMÁTICO';
+                inpMvMan.disabled = true; inpSp.disabled = false;
             } else {
-                btnAM.className = 'btn-toggle btn-manual';
-                btnAM.innerText = 'MODO MANUAL';
-                inpMvMan.disabled = false;
-                inpSp.disabled = true; 
+                btnAM.className = 'btn-toggle btn-manual'; btnAM.innerText = 'MODO MANUAL';
+                inpMvMan.disabled = false; inpSp.disabled = true; 
                 inpMvMan.value = parseFloat(document.getElementById('disp-mv').innerText).toFixed(1);
             }
         });
