@@ -3,359 +3,378 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IHM - Controlador PID</title>
+    <title>IHM de Controle - Automação Industrial</title>
+    <!-- Biblioteca Chart.js para o gráfico de tendências -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
-            --bg-color: #1e1e1e; --panel-bg: #2d2d30; --text-color: #d4d4d4;
-            --accent: #007acc; --danger: #d16969; --success: #6a9955;
-            --border: #3e3e42; --warn: #d7ba7d;
+            --bg-color: #1e1e1e;
+            --panel-bg: #2d2d30;
+            --text-color: #d4d4d4;
+            --accent: #007acc;
+            --accent-hover: #0098ff;
+            --danger: #d16969;
+            --success: #6a9955;
+            --border: #3e3e42;
         }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg-color); color: var(--text-color);
-            margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
-        h1 { color: var(--accent); text-align: center; margin-bottom: 5px; }
-        .subtitle { text-align: center; font-size: 0.9em; color: #888; margin-bottom: 20px; }
-        .dashboard { display: grid; grid-template-columns: 340px 1fr; gap: 20px; width: 100%; max-width: 1300px; }
+        h1 {
+            color: var(--accent);
+            text-align: center;
+            margin-bottom: 5px;
+        }
+        .subtitle {
+            text-align: center;
+            font-size: 0.9em;
+            color: #888;
+            margin-bottom: 20px;
+        }
+        .dashboard {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 20px;
+            width: 100%;
+            max-width: 1200px;
+        }
         .panel {
-            background-color: var(--panel-bg); border: 1px solid var(--border);
-            border-radius: 8px; padding: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            display: flex; flex-direction: column;
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
         }
-        .panel h2 { font-size: 1.0em; margin-top: 0; border-bottom: 1px solid var(--border); padding-bottom: 10px; color: var(--accent); }
-        .form-group { margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
-        .form-group label { font-size: 0.85em; }
+        .panel h2 {
+            font-size: 1.2em;
+            margin-top: 0;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
+        }
+        .form-group {
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .form-group label {
+            font-size: 0.9em;
+        }
         .form-group input, .form-group select {
-            width: 85px; background-color: #1e1e1e; color: #fff;
-            border: 1px solid var(--border); padding: 5px; border-radius: 4px;
-        }
-        .section-box {
-            border: 1px solid var(--border); padding: 10px; border-radius: 6px; margin-bottom: 15px; background-color: #252526;
+            width: 80px;
+            background-color: #1e1e1e;
+            color: #fff;
+            border: 1px solid var(--border);
+            padding: 5px;
+            border-radius: 4px;
         }
         .btn-toggle {
-            width: 100%; padding: 10px; margin-top: 5px; margin-bottom: 15px; border: none;
-            border-radius: 4px; font-weight: bold; cursor: pointer; transition: background 0.3s; color: white;
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+            border: none;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
         }
-        .btn-auto { background-color: var(--success); }
-        .btn-manual { background-color: var(--danger); }
-        .btn-step { background-color: var(--accent); width: 100%; padding: 8px; border: none; border-radius: 4px; color: white; font-weight: bold; cursor: pointer; margin-top: 10px; }
-        .btn-step:hover { background-color: #0098ff; }
+        .btn-auto { background-color: var(--success); color: white; }
+        .btn-manual { background-color: var(--danger); color: white; }
         
-        .displays { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 15px; }
+        .displays {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
         .display-box {
-            flex: 1; background-color: #000; border: 2px solid var(--border);
-            border-radius: 6px; padding: 10px; text-align: center;
+            flex: 1;
+            background-color: #000;
+            border: 2px solid var(--border);
+            border-radius: 6px;
+            padding: 10px;
+            text-align: center;
         }
         .display-box .label { font-size: 0.8em; color: #888; }
         .display-box .value { font-size: 1.5em; font-family: 'Courier New', Courier, monospace; color: #0f0; }
         .val-sp { color: #00ffff !important; }
         .val-mv { color: #ff00ff !important; }
-        .val-err { color: var(--warn) !important; }
 
-        canvas { background-color: #1e1e1e; border-radius: 4px; flex-grow: 1; }
-        
-        details.history-details { margin-top: 15px; background-color: #252526; border: 1px solid var(--border); border-radius: 6px; padding: 10px; }
-        details.history-details summary { cursor: pointer; font-weight: bold; color: var(--accent); outline: none; }
-        .history-controls {
-            display: flex; align-items: center; justify-content: space-between; gap: 15px;
-            margin-top: 15px; padding-top: 10px; border-top: 1px dashed var(--border);
+        canvas {
+            background-color: #1e1e1e;
+            border-radius: 4px;
         }
-        .history-controls input[type="range"] { flex: 1; accent-color: var(--accent); cursor: pointer; }
-        .history-controls label { font-size: 0.85em; display: flex; align-items: center; gap: 8px; cursor: pointer; }
-        .disabled-box { opacity: 0.5; pointer-events: none; }
-        
-        .chk-antibump { transform: scale(1.3); accent-color: var(--accent); }
     </style>
 </head>
 <body>
 
-    <h1>IHM - Controlador Digital Genérico</h1>
-    <div class="subtitle">Sintonia PID, Simulação e Modo Passo a Passo</div>
+    <h1>IHM - Controlador Digital Incremental</h1>
+    <div class="subtitle">Sintonia PID e Simulação de Processo</div>
 
     <div class="dashboard">
-        <!-- PAINEL ESQUERDO: CONFIGURAÇÕES -->
+        <!-- Painel de Configurações -->
         <div class="panel">
-            <h2>1. TEMPO E EXECUÇÃO</h2>
+            <h2>3. Parâmetros (PID)</h2>
             <div class="form-group">
-                <label>Modo de Tempo:</label>
-                <select id="inp-modo-tempo">
-                    <option value="continuo">Tempo Real (Contínuo)</option>
-                    <option value="passo">Manual (Passo a Passo)</option>
-                </select>
+                <label title="Ganho Proporcional">Kp:</label>
+                <input type="number" id="inp-kp" value="1.5" step="0.1">
+            </div>
+            <div class="form-group">
+                <label title="Tempo Integral (s)">Ti (s):</label>
+                <input type="number" id="inp-ti" value="15" step="1">
+            </div>
+            <div class="form-group">
+                <label title="Tempo Derivativo (s)">Td (s):</label>
+                <input type="number" id="inp-td" value="2" step="0.5">
+            </div>
+            <div class="form-group">
+                <label title="Tempo de Amostragem (s)">Ts (s):</label>
+                <input type="number" id="inp-ts" value="1" step="0.1" disabled>
             </div>
             
-            <div id="box-passo" class="section-box disabled-box">
-                <div class="form-group"><label>Injetar PV Manual:</label><input type="number" id="inp-pv-manual" value="25.0" step="0.1"></div>
-                <button id="btn-avancar-passo" class="btn-step">AVANÇAR 1 CICLO (Ts)</button>
-            </div>
-
-            <h2>2. SINTONIA DO CONTROLADOR</h2>
+            <h2>9. Ação de Controle</h2>
             <div class="form-group">
-                <label>Sintonia:</label>
-                <select id="inp-modo-sintonia">
-                    <option value="pid">Clássico (Kp, Ti, Td)</option>
-                    <option value="coeficientes">Equação (a0, a1, a2)</option>
-                </select>
-            </div>
-
-            <div class="section-box" id="box-pid">
-                <div class="form-group"><label>Kp:</label><input type="number" id="inp-kp" value="1.5" step="0.1"></div>
-                <div class="form-group"><label>Ti (s):</label><input type="number" id="inp-ti" value="15" step="1"></div>
-                <div class="form-group"><label>Td (s):</label><input type="number" id="inp-td" value="2" step="0.5"></div>
-            </div>
-
-            <div class="section-box disabled-box" id="box-coef">
-                <div class="form-group"><label>a0:</label><input type="number" id="inp-a0" value="0.00" step="0.01"></div>
-                <div class="form-group"><label>a1:</label><input type="number" id="inp-a1" value="0.00" step="0.01"></div>
-                <div class="form-group"><label>a2:</label><input type="number" id="inp-a2" value="0.00" step="0.01"></div>
-            </div>
-            
-            <h2>3. OPERAÇÃO & PROTEÇÕES</h2>
-            <div class="form-group">
-                <label>Ação do Controlador:</label>
+                <label>Modo de Ação:</label>
                 <select id="inp-acao">
-                    <option value="reversa">Reversa</option>
-                    <option value="direta">Direta</option>
+                    <option value="reversa">Reversa (Aquecer)</option>
+                    <option value="direta">Direta (Resfriar)</option>
                 </select>
             </div>
 
-            <!-- NOVA OPÇÃO ANTI BUMP -->
-            <div class="form-group section-box">
-                <label style="color: var(--accent); font-weight: bold; cursor: pointer;">
-                    <input type="checkbox" id="chk-antibump" class="chk-antibump" checked> 
-                    Ativar Anti-Bump (MV)
-                </label>
-                <div style="font-size: 0.75em; color: #888; margin-top: 5px;">Suaviza degraus bruscos na saída.</div>
-            </div>
-
+            <h2>4. Transferência A/M</h2>
             <button id="btn-am" class="btn-toggle btn-auto">MODO AUTOMÁTICO</button>
-            <div class="form-group"><label>Setpoint (SP):</label><input type="number" id="inp-sp" value="50" step="1"></div>
-            <div class="form-group"><label>MV Manual (%):</label><input type="number" id="inp-mv-man" value="0" step="1" disabled></div>
             
-            <h2 style="margin-top: 10px;">PLANTA (Apenas Modo Contínuo)</h2>
-            <div class="form-group"><label>Ganho (K):</label><input type="number" id="inp-pl-k" value="1.0" step="0.1"></div>
-            <div class="form-group"><label>Tempo (τ):</label><input type="number" id="inp-pl-tau" value="10" step="1"></div>
+            <div class="form-group" style="margin-top: 15px;">
+                <label title="Setpoint">Setpoint (SP):</label>
+                <input type="number" id="inp-sp" value="50" step="1">
+            </div>
+            <div class="form-group">
+                <label title="Variável Manipulada Manual">MV Manual (%):</label>
+                <input type="number" id="inp-mv-man" value="0" step="1" disabled>
+            </div>
+            
+            <p style="font-size: 0.8em; color: #888; margin-top: 20px;">
+                * Em modo Manual, a função <strong>Tracking</strong> fará o SP seguir a VP atual para garantir retorno <strong>Bumpless</strong>.
+            </p>
         </div>
 
-        <!-- PAINEL DIREITO: GRÁFICO E DISPLAYS -->
+        <!-- Painel de Operação e Gráfico -->
         <div class="panel">
             <div class="displays">
-                <div class="display-box"><div class="label">PV (Processo)</div><div class="value" id="disp-pv">0.00</div></div>
-                <div class="display-box"><div class="label">SP (Setpoint)</div><div class="value val-sp" id="disp-sp">50.00</div></div>
-                <div class="display-box"><div class="label">Erro (SP - PV)</div><div class="value val-err" id="disp-erro">0.00</div></div>
-                <div class="display-box"><div class="label">MV (Manipulada)</div><div class="value val-mv" id="disp-mv">0.00 %</div></div>
-            </div>
-            
-            <canvas id="trendChart" width="800" height="350"></canvas>
-            
-            <!-- HISTÓRICO OCULTO POR PADRÃO -->
-            <details class="history-details">
-                <summary>Visualizar Ferramentas de Histórico</summary>
-                <div class="history-controls">
-                    <label><input type="checkbox" id="chk-realtime" checked> Tempo Real</label>
-                    <label>Janela: <input type="number" id="inp-janela" value="60" min="10" max="600" step="10" style="width:60px;"></label>
-                    <input type="range" id="slider-hist" min="0" max="0" value="0" disabled>
+                <div class="display-box">
+                    <div class="label">PV (Variável de Processo)</div>
+                    <div class="value" id="disp-pv">0.00</div>
                 </div>
-            </details>
+                <div class="display-box">
+                    <div class="label">SP (Setpoint)</div>
+                    <div class="value val-sp" id="disp-sp">50.00</div>
+                </div>
+                <div class="display-box">
+                    <div class="label">MV (Variável Manipulada)</div>
+                    <div class="value val-mv" id="disp-mv">0.00 %</div>
+                </div>
+            </div>
+            <canvas id="trendChart" width="800" height="400"></canvas>
         </div>
     </div>
 
     <script>
+        // ==========================================
+        // REQUISITOS 1, 2, 7, 8, 10 - CLASSE DO CONTROLADOR
+        // ==========================================
         class ControladorDigitalPID {
-            constructor(outMin = 0, outMax = 100) {
-                this.outMin = outMin; this.outMax = outMax; 
-                this.e_k1 = 0; this.pv_k1 = 0; this.pv_k2 = 0; this.u_k1 = 0;
+            constructor(Kp, Ti, Td, Ts, acaoDireta = false, outMin = 0, outMax = 100) {
+                this.Kp = Kp;
+                this.Ti = Ti;
+                this.Td = Td;
+                this.Ts = Ts;
+                
+                this.outMin = outMin;
+                this.outMax = outMax; // 7. Anti reset wind-up
+                
+                // 9. Ação Direta ou Reversa (1 = Reversa/Aquecimento, -1 = Direta/Resfriamento)
+                this.dir = acaoDireta ? -1 : 1; 
+
+                // 2. Memória de estados (Segunda Ordem)
+                this.e_k1 = 0;
+                this.pv_k1 = 0;
+                this.pv_k2 = 0;
+                this.u_k1 = 0;
             }
 
-            calcular(sp, pv, a0, a1, a2, dir, isAuto, manualMv, spTrackingAtivo, antiBump) {
-                let erroReal = sp - pv;
-                let e_k = dir * erroReal;
-
+            // 1. Algoritmo Incremental
+            calcular(sp, pv, isAuto, manualMv, spTrackingAtivo = true) {
+                // 4. Transferência Automático / Manual
                 if (!isAuto) {
+                    // 6. Função Tracking para SP e VM
                     if (spTrackingAtivo) sp = pv; 
                     let u_manual = Math.max(this.outMin, Math.min(this.outMax, manualMv));
-                    this.u_k1 = u_manual; this.e_k1 = dir * (sp - pv); this.pv_k1 = pv; this.pv_k2 = pv;
-                    return { mv: u_manual, novoSp: sp, erro: erroReal }; 
+                    
+                    // 5. Função Bumpless (atualiza a memória com o estado atual do manual)
+                    this.u_k1 = u_manual; 
+                    this.e_k1 = this.dir * (sp - pv);
+                    this.pv_k1 = pv;
+                    this.pv_k2 = pv;
+                    
+                    return { mv: u_manual, novoSp: sp }; 
                 }
 
-                let a0_PI = a0 - a2; let a1_PI = a1 + 2 * a2;
-                let deltaPI = (a0_PI * e_k) + (a1_PI * this.e_k1);
-                let deltaD = -dir * a2 * (pv - 2 * this.pv_k1 + this.pv_k2);
+                let e_k = this.dir * (sp - pv);
 
-                let deltaU = deltaPI + deltaD;
+                // Delta Proporcional
+                let deltaP = this.Kp * (e_k - this.e_k1);
 
-                // LOGICA ANTI BUMP (Slew Rate Limiter)
-                // Se ativado, impede que a MV sofra degraus, limitando a variação a 2.5% por ciclo
-                if (antiBump) {
-                    const maxVariavel = 2.5; 
-                    if (deltaU > maxVariavel) deltaU = maxVariavel;
-                    if (deltaU < -maxVariavel) deltaU = -maxVariavel;
+                // Delta Integral (8. Rampa em reposta ao degrau)
+                let deltaI = 0;
+                if (this.Ti > 0) {
+                    deltaI = this.Kp * (this.Ts / this.Ti) * e_k;
                 }
 
+                // Delta Derivativo (10. Ação derivativa aplicada SOMENTE a VP)
+                let deltaD = 0;
+                if (this.Td > 0) {
+                    // Em vez de derivar o erro, deriva-se a VP. O sinal negativo evita o tranco no SP.
+                    deltaD = -this.dir * this.Kp * (this.Td / this.Ts) * (pv - 2 * this.pv_k1 + this.pv_k2);
+                }
+
+                let deltaU = deltaP + deltaI + deltaD;
                 let u_k = this.u_k1 + deltaU;
+
+                // 7. Anti Reset Wind-up (Trava a saída)
                 u_k = Math.max(this.outMin, Math.min(this.outMax, u_k));
 
-                this.e_k1 = e_k; this.pv_k2 = this.pv_k1; this.pv_k1 = pv; this.u_k1 = u_k;
+                // Atualiza a memória de Segunda Ordem
+                this.e_k1 = e_k;
+                this.pv_k2 = this.pv_k1;
+                this.pv_k1 = pv;
+                this.u_k1 = u_k;
 
-                return { mv: u_k, novoSp: sp, erro: erroReal };
+                return { mv: u_k, novoSp: sp };
             }
         }
+
+        // ==========================================
+        // SIMULAÇÃO DA PLANTA E INTERFACE (IHM)
+        // ==========================================
         
         let isAuto = true;
-        let pv_atual = 25.0; 
-        const Ts = 1; 
-        let clockTimer = null;
+        let pv_atual = 25.0; // Temperatura ambiente inicial
+        const Ts = 1; // Tempo de amostragem (1 segundo)
         
-        const pid = new ControladorDigitalPID(0, 100);
-        pid.pv_k1 = pv_atual; pid.pv_k2 = pv_atual;
+        // CORREÇÃO: Instanciar o controlador UMA ÚNICA VEZ fora do ciclo!
+        const pid = new ControladorDigitalPID(1.5, 15, 2, Ts, false);
+        
+        // Inicializar a memória com a PV atual para evitar solavancos no primeiro ciclo
+        pid.pv_k1 = pv_atual;
+        pid.pv_k2 = pv_atual;
 
-        const maxHistorico = 3600; let tickCount = 0;
-        let hist_labels = [], hist_pv = [], hist_sp = [], hist_mv = [];
-
+        // Inicializa gráfico
         const ctx = document.getElementById('trendChart').getContext('2d');
         const trendChart = new Chart(ctx, {
             type: 'line',
-            data: { labels: [], datasets: [
-                { label: 'PV', borderColor: '#00ff00', data: [], pointRadius: 0, tension: 0.1 },
-                { label: 'SP', borderColor: '#00ffff', data: [], pointRadius: 0, borderDash: [5, 5] },
-                { label: 'MV (%)', borderColor: '#ff00ff', data: [], pointRadius: 0, yAxisID: 'y1' }
-            ]},
+            data: {
+                labels: Array(60).fill(''), // 60 amostras no eixo X
+                datasets: [
+                    { label: 'PV', borderColor: '#00ff00', data: Array(60).fill(25), pointRadius: 0, tension: 0.1 },
+                    { label: 'SP', borderColor: '#00ffff', data: Array(60).fill(50), pointRadius: 0, borderDash: [5, 5] },
+                    { label: 'MV (%)', borderColor: '#ff00ff', data: Array(60).fill(0), pointRadius: 0, yAxisID: 'y1' }
+                ]
+            },
             options: {
-                responsive: true, animation: false,
+                responsive: true,
+                animation: false,
                 scales: {
-                    y: { title: { display: true, text: 'Variáveis (PV / SP)', color: '#fff' }, grid: { color: '#333' } },
+                    y: { min: 0, max: 100, title: { display: true, text: 'Variáveis (PV / SP)', color: '#fff' }, grid: { color: '#333' } },
                     y1: { min: 0, max: 100, position: 'right', title: { display: true, text: 'MV (%)', color: '#fff' }, grid: { drawOnChartArea: false } },
-                    x: { grid: { color: '#333' }, ticks: { maxTicksLimit: 15 } }
+                    x: { grid: { color: '#333' } }
                 },
                 plugins: { legend: { labels: { color: '#fff' } } }
             }
         });
 
-        // Eventos de UI
-        const modoSintonia = document.getElementById('inp-modo-sintonia');
-        const boxPid = document.getElementById('box-pid'), boxCoef = document.getElementById('box-coef');
-        const chkRealtime = document.getElementById('chk-realtime'), inpJanela = document.getElementById('inp-janela'), sliderHist = document.getElementById('slider-hist');
-        const modoTempo = document.getElementById('inp-modo-tempo'), boxPasso = document.getElementById('box-passo');
-        const btnAvancar = document.getElementById('btn-avancar-passo');
-
-        modoSintonia.addEventListener('change', (e) => {
-            if(e.target.value === 'pid') { boxPid.classList.remove('disabled-box'); boxCoef.classList.add('disabled-box'); } 
-            else { boxPid.classList.add('disabled-box'); boxCoef.classList.remove('disabled-box'); }
-        });
-
-        modoTempo.addEventListener('change', (e) => {
-            if(e.target.value === 'continuo') {
-                boxPasso.classList.add('disabled-box');
-                iniciarClock(); // Retoma tempo real
-            } else {
-                boxPasso.classList.remove('disabled-box');
-                pararClock(); // Pausa tempo real para avanço manual
-                document.getElementById('inp-pv-manual').value = pv_atual.toFixed(2);
-            }
-        });
-
-        sliderHist.addEventListener('input', () => { chkRealtime.checked = false; atualizarGrafico(); });
-        inpJanela.addEventListener('change', atualizarGrafico);
-        chkRealtime.addEventListener('change', atualizarGrafico);
-
-        function atualizarGrafico() {
-            let janela = parseInt(inpJanela.value) || 60;
-            let total = hist_labels.length;
-            sliderHist.max = Math.max(0, total - janela);
-            if(chkRealtime.checked) { sliderHist.value = sliderHist.max; sliderHist.disabled = true; } 
-            else { sliderHist.disabled = false; }
-            let start = parseInt(sliderHist.value);
-            let end = start + janela;
-            if (total < janela) { start = 0; end = total; }
-            trendChart.data.labels = hist_labels.slice(start, end);
-            trendChart.data.datasets[0].data = hist_pv.slice(start, end);
-            trendChart.data.datasets[1].data = hist_sp.slice(start, end);
-            trendChart.data.datasets[2].data = hist_mv.slice(start, end);
-            trendChart.update('none'); 
-        }
-
-        // FUNÇÃO CENTRAL DE EXECUÇÃO DO CICLO
-        function executarCiclo() {
-            let a0, a1, a2;
-            if (modoSintonia.value === 'pid') {
-                const Kp = parseFloat(document.getElementById('inp-kp').value);
-                const Ti = parseFloat(document.getElementById('inp-ti').value);
-                const Td = parseFloat(document.getElementById('inp-td').value);
-                a0 = Kp * (1 + (Ts / Ti) + (Td / Ts)); a1 = -Kp * (1 + 2 * (Td / Ts)); a2 = Kp * (Td / Ts);
-                document.getElementById('inp-a0').value = a0.toFixed(4);
-                document.getElementById('inp-a1').value = a1.toFixed(4);
-                document.getElementById('inp-a2').value = a2.toFixed(4);
-            } else {
-                a0 = parseFloat(document.getElementById('inp-a0').value);
-                a1 = parseFloat(document.getElementById('inp-a1').value);
-                a2 = parseFloat(document.getElementById('inp-a2').value);
-            }
-
-            let dir = document.getElementById('inp-acao').value === 'direta' ? -1 : 1;
+        // Loop de Controle
+        setInterval(() => {
+            // Lê parâmetros da tela e ATUALIZA a instância existente
+            pid.Kp = parseFloat(document.getElementById('inp-kp').value);
+            pid.Ti = parseFloat(document.getElementById('inp-ti').value);
+            pid.Td = parseFloat(document.getElementById('inp-td').value);
+            pid.dir = document.getElementById('inp-acao').value === 'direta' ? -1 : 1;
+            
             let sp_input = parseFloat(document.getElementById('inp-sp').value);
-            let mv_man_input = parseFloat(document.getElementById('inp-mv-man').value);
-            let antiBump = document.getElementById('chk-antibump').checked;
+            const mv_man_input = parseFloat(document.getElementById('inp-mv-man').value);
 
-            // Se estiver no modo passo a passo, a PV é forçada pelo input manual
-            if (modoTempo.value === 'passo') {
-                pv_atual = parseFloat(document.getElementById('inp-pv-manual').value);
-            }
-
-            const resultado = pid.calcular(sp_input, pv_atual, a0, a1, a2, dir, isAuto, mv_man_input, true, antiBump);
+            // Executa o cálculo PID preservando o histórico guardado na instância
+            const resultado = pid.calcular(sp_input, pv_atual, isAuto, mv_man_input, true);
             const mv_aplicada = resultado.mv;
 
-            if (!isAuto && sp_input !== resultado.novoSp) { document.getElementById('inp-sp').value = resultado.novoSp.toFixed(1); }
-
-            // Se for Contínuo, simula a Planta G(s)
-            if (modoTempo.value === 'continuo') {
-                let k_pl = parseFloat(document.getElementById('inp-pl-k').value);
-                let tau_pl = parseFloat(document.getElementById('inp-pl-tau').value);
-                if (tau_pl < 0.1) tau_pl = 0.1; 
-                let alpha = Math.exp(-Ts / tau_pl);
-                let pv_regime = (k_pl * mv_aplicada) + 0; // Bias 0 padrao
-                pv_atual = (pv_atual * alpha) + (pv_regime * (1 - alpha)) + ((Math.random()-0.5)*0.1);
+            // Atualiza o SP na interface se a função Tracking tiver forçado uma mudança
+            if (!isAuto && sp_input !== resultado.novoSp) {
+                document.getElementById('inp-sp').value = resultado.novoSp.toFixed(1);
             }
 
+            // Simulação da Planta (Função de Transferência de Primeira Ordem Simples)
+            let ganhoPlanta = 0.5; // O quanto 100% de MV afeta a PV
+            let constanteTempo = 0.95; // Inércia térmica
+            
+            let perturbacao = (Math.random() - 0.5) * 0.5; // Ruído de leitura
+            
+            if(document.getElementById('inp-acao').value === 'reversa'){
+                // Aquecimento: MV aumenta a PV, tende a voltar à temp ambiente (25)
+                pv_atual = (pv_atual * constanteTempo) + (25 * (1 - constanteTempo)) + (mv_aplicada * ganhoPlanta * (1 - constanteTempo)) + perturbacao;
+            } else {
+                // Resfriamento: MV diminui a PV, tende a voltar à temp ambiente (80)
+                let tempAmbienteResfriamento = 80;
+                pv_atual = (pv_atual * constanteTempo) + (tempAmbienteResfriamento * (1 - constanteTempo)) - (mv_aplicada * ganhoPlanta * (1 - constanteTempo)) + perturbacao;
+            }
+
+            // Atualiza Displays
             document.getElementById('disp-pv').innerText = pv_atual.toFixed(2);
             document.getElementById('disp-sp').innerText = resultado.novoSp.toFixed(2);
-            document.getElementById('disp-erro').innerText = resultado.erro.toFixed(2);
             document.getElementById('disp-mv').innerText = mv_aplicada.toFixed(2) + ' %';
 
-            tickCount++;
-            let m = Math.floor(tickCount / 60).toString().padStart(2, '0');
-            let s = (tickCount % 60).toString().padStart(2, '0');
+            // Atualiza Gráfico
+            trendChart.data.datasets[0].data.shift();
+            trendChart.data.datasets[0].data.push(pv_atual);
             
-            hist_labels.push(`${m}:${s}`); hist_pv.push(pv_atual); hist_sp.push(resultado.novoSp); hist_mv.push(mv_aplicada);
-            if(hist_labels.length > maxHistorico) { hist_labels.shift(); hist_pv.shift(); hist_sp.shift(); hist_mv.shift(); }
-            atualizarGrafico();
-        }
+            trendChart.data.datasets[1].data.shift();
+            trendChart.data.datasets[1].data.push(resultado.novoSp);
+            
+            trendChart.data.datasets[2].data.shift();
+            trendChart.data.datasets[2].data.push(mv_aplicada);
+            
+            trendChart.update();
 
-        // Avanço manual
-        btnAvancar.addEventListener('click', executarCiclo);
+        }, Ts * 1000);
 
-        // Controlos de Loop
-        function iniciarClock() { if(!clockTimer) clockTimer = setInterval(executarCiclo, Ts * 1000); }
-        function pararClock() { clearInterval(clockTimer); clockTimer = null; }
+        // Lógica dos Botões da Interface
+        const btnAM = document.getElementById('btn-am');
+        const inpMvMan = document.getElementById('inp-mv-man');
+        const inpSp = document.getElementById('inp-sp');
 
-        // Botão Auto/Manual
-        const btnAM = document.getElementById('btn-am'), inpMvMan = document.getElementById('inp-mv-man'), inpSp = document.getElementById('inp-sp');
         btnAM.addEventListener('click', () => {
             isAuto = !isAuto;
             if (isAuto) {
-                btnAM.className = 'btn-toggle btn-auto'; btnAM.innerText = 'MODO AUTOMÁTICO';
-                inpMvMan.disabled = true; inpSp.disabled = false;
+                btnAM.className = 'btn-toggle btn-auto';
+                btnAM.innerText = 'MODO AUTOMÁTICO';
+                inpMvMan.disabled = true;
+                inpSp.disabled = false;
             } else {
-                btnAM.className = 'btn-toggle btn-manual'; btnAM.innerText = 'MODO MANUAL';
-                inpMvMan.disabled = false; inpSp.disabled = true; 
+                btnAM.className = 'btn-toggle btn-manual';
+                btnAM.innerText = 'MODO MANUAL';
+                inpMvMan.disabled = false;
+                inpSp.disabled = true; // Desabilita SP porque o Tracking fará ele seguir a PV
+                
+                // O Tracking de MV inicializa o campo manual com a MV do momento em que desligou o automático
                 inpMvMan.value = parseFloat(document.getElementById('disp-mv').innerText).toFixed(1);
             }
         });
-
-        // Arranque Inicial
-        iniciarClock();
-
     </script>
 </body>
 </html>
