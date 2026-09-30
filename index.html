@@ -166,14 +166,17 @@
                 this.e_k1 = 0; this.pv_k1 = 0; this.pv_k2 = 0; this.u_k1 = 0;
             }
 
-            calcular(sp, pv, a0, a1, a2, dir, isAuto, manualMv, spTrackingAtivo, antiBump) {
+            calcular(sp, pv, a0, a1, a2, dir, isAuto, manualMv, antiBump) {
                 let erroReal = sp - pv;
                 let e_k = dir * erroReal;
 
                 if (!isAuto) {
-                    if (spTrackingAtivo) sp = pv; 
+                    // Sem sobreposição contínua. Respeita o SP definido pelo utilizador.
                     let u_manual = Math.max(this.outMin, Math.min(this.outMax, manualMv));
-                    this.u_k1 = u_manual; this.e_k1 = dir * (sp - pv); this.pv_k1 = pv; this.pv_k2 = pv;
+                    this.u_k1 = u_manual; 
+                    this.e_k1 = dir * (sp - pv); 
+                    this.pv_k1 = pv; 
+                    this.pv_k2 = pv;
                     return { mv: u_manual, novoSp: sp, erro: erroReal }; 
                 }
 
@@ -295,11 +298,8 @@
                 pv_atual = parseFloat(document.getElementById('inp-pv-manual').value);
             }
 
-            const resultado = pid.calcular(sp_input, pv_atual, a0, a1, a2, dir, isAuto, mv_man_input, true, antiBump);
+            const resultado = pid.calcular(sp_input, pv_atual, a0, a1, a2, dir, isAuto, mv_man_input, antiBump);
             const mv_aplicada = resultado.mv;
-
-            // Mantém a sincronia em automático
-            if (!isAuto && sp_input !== resultado.novoSp) { document.getElementById('inp-sp').value = resultado.novoSp.toFixed(2); }
 
             if (modoTempo.value === 'continuo') {
                 let k_pl = parseFloat(document.getElementById('inp-pl-k').value);
@@ -336,16 +336,14 @@
             isAuto = !isAuto;
             if (isAuto) {
                 btnAM.className = 'btn-toggle btn-auto'; btnAM.innerText = 'MODO AUTOMÁTICO';
-                inpMvMan.disabled = true; inpSp.disabled = false;
+                inpMvMan.disabled = true;
             } else {
                 btnAM.className = 'btn-toggle btn-manual'; btnAM.innerText = 'MODO MANUAL';
-                inpMvMan.disabled = false; inpSp.disabled = true; 
-                inpMvMan.value = parseFloat(document.getElementById('disp-mv').innerText).toFixed(1);
+                inpMvMan.disabled = false;
                 
-                // ESCRITA IMEDIATA DO SETPOINT = PV (Tracking visual instantâneo)
+                // Reescreve o SP com o valor da PV APENAS UMA VEZ no momento do clique
                 inpSp.value = pv_atual.toFixed(2);
                 document.getElementById('disp-sp').innerText = pv_atual.toFixed(2);
-                document.getElementById('disp-erro').innerText = "0.00";
             }
         });
 
