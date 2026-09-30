@@ -4,8 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IHM - Controlador PID</title>
+    <!-- Biblioteca Chart.js utilizada para renderizar o gráfico de tendências -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
+        /* Definição do tema escuro industrial (SCADA-like) */
         :root {
             --bg-color: #1e1e1e; --panel-bg: #2d2d30; --text-color: #d4d4d4;
             --accent: #007acc; --danger: #d16969; --success: #6a9955;
@@ -19,6 +21,8 @@
         h1 { color: var(--accent); text-align: center; margin-bottom: 5px; }
         .subtitle { text-align: center; font-size: 0.9em; color: #888; margin-bottom: 20px; }
         .dashboard { display: grid; grid-template-columns: 340px 1fr; gap: 20px; width: 100%; max-width: 1300px; }
+        
+        /* Estilização dos painéis e formulários */
         .panel {
             background-color: var(--panel-bg); border: 1px solid var(--border);
             border-radius: 8px; padding: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
@@ -34,6 +38,8 @@
         .section-box {
             border: 1px solid var(--border); padding: 10px; border-radius: 6px; margin-bottom: 15px; background-color: #252526;
         }
+        
+        /* Botões de Operação */
         .btn-toggle {
             width: 100%; padding: 10px; margin-top: 5px; margin-bottom: 15px; border: none;
             border-radius: 4px; font-weight: bold; cursor: pointer; transition: background 0.3s; color: white;
@@ -43,6 +49,7 @@
         .btn-step { background-color: var(--accent); width: 100%; padding: 8px; border: none; border-radius: 4px; color: white; font-weight: bold; cursor: pointer; margin-top: 10px; }
         .btn-step:hover { background-color: #0098ff; }
         
+        /* Displays de Sete Segmentos/LCD simulados */
         .displays { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 15px; }
         .display-box {
             flex: 1; background-color: #000; border: 2px solid var(--border);
@@ -56,6 +63,7 @@
 
         canvas { background-color: #1e1e1e; border-radius: 4px; flex-grow: 1; }
         
+        /* Painel expansível de Histórico */
         details.history-details { margin-top: 15px; background-color: #252526; border: 1px solid var(--border); border-radius: 6px; padding: 10px; }
         details.history-details summary { cursor: pointer; font-weight: bold; color: var(--accent); outline: none; }
         .history-controls {
@@ -75,6 +83,7 @@
     <div class="subtitle">Sintonia PID, Simulação e Modo Passo a Passo</div>
 
     <div class="dashboard">
+        <!-- ================= PAINEL ESQUERDO: CONTROLES ================= -->
         <div class="panel">
             <h2>1. TEMPO E EXECUÇÃO</h2>
             <div class="form-group">
@@ -141,6 +150,7 @@
             <div class="form-group"><label title="Valor quando MV = 0">Bias (Repouso):</label><input type="number" id="inp-pl-bias" value="0" step="1"></div>
         </div>
 
+        <!-- ================= PAINEL DIREITO: GRÁFICOS ================= -->
         <div class="panel">
             <div class="displays">
                 <div class="display-box"><div class="label">PV (Processo)</div><div class="value" id="disp-pv">0.00</div></div>
@@ -162,58 +172,105 @@
         </div>
     </div>
 
+    <!-- ================= LÓGICA JAVASCRIPT ================= -->
     <script>
+        /**
+         * CLASSE DO CONTROLADOR DIGITAL
+         * Implementa a Equação de Diferenças (Algoritmo Incremental de 2ª Ordem)
+         */
         class ControladorDigitalPID {
             constructor(outMin = 0, outMax = 100) {
-                this.outMin = outMin; this.outMax = outMax; 
-                this.e_k1 = 0; this.pv_k1 = 0; this.pv_k2 = 0; this.u_k1 = 0;
+                // Limites de saturação da Válvula/Atuador (0 a 100%)
+                this.outMin = outMin; 
+                this.outMax = outMax; 
+                
+                // Memória de estados passados (k-1 e k-2) cruciais para a 2ª ordem
+                this.e_k1 = 0;  // Erro do ciclo anterior
+                this.pv_k1 = 0; // PV do ciclo anterior
+                this.pv_k2 = 0; // PV de 2 ciclos atrás
+                this.u_k1 = 0;  // Saída (MV) do ciclo anterior
             }
 
+            // Método executado a cada tempo de amostragem (Ts)
             calcular(sp, pv, a0, a1, a2, dir, isAuto, manualMv, antiBump) {
+                // Calcula o erro real e aplica a direção (Direta = -1, Reversa = 1)
                 let erroReal = sp - pv;
                 let e_k = dir * erroReal;
 
+                // --- MODO MANUAL ---
                 if (!isAuto) {
+                    // Limita o valor digitado pelo operador entre 0 e 100%
                     let u_manual = Math.max(this.outMin, Math.min(this.outMax, manualMv));
+                    
+                    // TRANSFERÊNCIA BUMPLESS: Atualiza a memória interna com o estado real atual.
+                    // Assim, quando voltar a Automático, o cálculo partirá exatamente deste ponto.
                     this.u_k1 = u_manual; 
                     this.e_k1 = dir * (sp - pv); 
                     this.pv_k1 = pv; 
                     this.pv_k2 = pv;
+                    
                     return { mv: u_manual, novoSp: sp, erro: erroReal }; 
                 }
 
-                let a0_PI = a0 - a2; let a1_PI = a1 + 2 * a2;
+                // --- MODO AUTOMÁTICO (Cálculo PID) ---
+
+                // REQUISITO 10: Derivada apenas na PV.
+                // Como o termo 'a2' engloba a derivada, separamos o polinômio.
+                // a0_PI e a1_PI atuarão sobre o ERRO (Proporcional + Integral).
+                let a0_PI = a0 - a2; 
+                let a1_PI = a1 + 2 * a2;
+                
+                // Cálculo da variação PI: ΔU_pi = a0_PI * e(k) + a1_PI * e(k-1)
                 let deltaPI = (a0_PI * e_k) + (a1_PI * this.e_k1);
+                
+                // Cálculo da variação Derivativa sobre a PV (e não sobre o erro)
+                // Evita o 'Derivative Kick' quando o SP é alterado em degrau.
                 let deltaD = -dir * a2 * (pv - 2 * this.pv_k1 + this.pv_k2);
 
+                // Variação Total do esforço de controle (ΔU)
                 let deltaU = deltaPI + deltaD;
 
+                // PROTEÇÃO: Anti-Bump (Slew Rate Limiter)
+                // Limita a taxa de variação máxima da MV a 2.5% por ciclo (Suaviza a ação)
                 if (antiBump) {
                     const maxVariavel = 2.5; 
                     if (deltaU > maxVariavel) deltaU = maxVariavel;
                     if (deltaU < -maxVariavel) deltaU = -maxVariavel;
                 }
 
+                // Integração numérica final: U(k) = U(k-1) + ΔU
                 let u_k = this.u_k1 + deltaU;
+                
+                // REQUISITO 7: Anti Reset Wind-Up
+                // Como é algoritmo incremental, saturar o valor final de U(k) 
+                // impede o acúmulo infinito (wind-up) da parcela integral.
                 u_k = Math.max(this.outMin, Math.min(this.outMax, u_k));
 
-                this.e_k1 = e_k; this.pv_k2 = this.pv_k1; this.pv_k1 = pv; this.u_k1 = u_k;
+                // Atualização da memória (Shifting dos registradores) para o próximo ciclo
+                this.e_k1 = e_k; 
+                this.pv_k2 = this.pv_k1; 
+                this.pv_k1 = pv; 
+                this.u_k1 = u_k;
 
                 return { mv: u_k, novoSp: sp, erro: erroReal };
             }
         }
         
+        // ================= INSTANCIAÇÃO E CONFIGURAÇÃO GLOBAL =================
         let isAuto = true;
-        let pv_atual = 25.0; 
-        const Ts = 1; 
-        let clockTimer = null;
+        let pv_atual = 25.0; // Temperatura ambiente (repouso)
+        const Ts = 1;        // Tempo de amostragem em segundos
+        let clockTimer = null; // Handler do temporizador
         
+        // Inicializa o objeto do controlador e a sua memória para o instante zero
         const pid = new ControladorDigitalPID(0, 100);
         pid.pv_k1 = pv_atual; pid.pv_k2 = pv_atual;
 
+        // Buffers de memória para o gráfico de histórico (até 1 hora)
         const maxHistorico = 3600; let tickCount = 0;
         let hist_labels = [], hist_pv = [], hist_sp = [], hist_mv = [];
 
+        // Inicialização do Gráfico Chart.js
         const ctx = document.getElementById('trendChart').getContext('2d');
         const trendChart = new Chart(ctx, {
             type: 'line',
@@ -233,6 +290,7 @@
             }
         });
 
+        // ================= MAPEAMENTO DE ELEMENTOS DO DOM =================
         const modoSintonia = document.getElementById('inp-modo-sintonia');
         const boxPid = document.getElementById('box-pid'), boxCoef = document.getElementById('box-coef');
         const chkRealtime = document.getElementById('chk-realtime'), inpJanela = document.getElementById('inp-janela'), sliderHist = document.getElementById('slider-hist');
@@ -241,11 +299,15 @@
         const inpSp = document.getElementById('inp-sp');
         const chkSpTracking = document.getElementById('chk-sptracking');
 
+        // ================= EVENTOS DE INTERFACE =================
+        
+        // Alterna entre inserir Sintonia Kp/Ti/Td ou Equação Direta a0/a1/a2
         modoSintonia.addEventListener('change', (e) => {
             if(e.target.value === 'pid') { boxPid.classList.remove('disabled-box'); boxCoef.classList.add('disabled-box'); } 
             else { boxPid.classList.add('disabled-box'); boxCoef.classList.remove('disabled-box'); }
         });
 
+        // Alterna entre simulação em tempo real ou debug manual passo a passo
         modoTempo.addEventListener('change', (e) => {
             if(e.target.value === 'continuo') {
                 boxPasso.classList.add('disabled-box');
@@ -257,10 +319,12 @@
             }
         });
 
+        // Trava o input de SP caso o Tracking seja ativado em modo manual
         chkSpTracking.addEventListener('change', (e) => {
             if (!isAuto) inpSp.disabled = e.target.checked;
         });
 
+        // Funções para manipular a janela de visualização do gráfico histórico
         sliderHist.addEventListener('input', () => { chkRealtime.checked = false; atualizarGrafico(); });
         inpJanela.addEventListener('change', atualizarGrafico);
         chkRealtime.addEventListener('change', atualizarGrafico);
@@ -268,12 +332,17 @@
         function atualizarGrafico() {
             let janela = parseInt(inpJanela.value) || 60;
             let total = hist_labels.length;
+            
+            // Lógica do slider de tempo
             sliderHist.max = Math.max(0, total - janela);
             if(chkRealtime.checked) { sliderHist.value = sliderHist.max; sliderHist.disabled = true; } 
             else { sliderHist.disabled = false; }
+            
             let start = parseInt(sliderHist.value);
             let end = start + janela;
             if (total < janela) { start = 0; end = total; }
+            
+            // Fatiamento (Slice) dos arrays para renderizar apenas a janela selecionada
             trendChart.data.labels = hist_labels.slice(start, end);
             trendChart.data.datasets[0].data = hist_pv.slice(start, end);
             trendChart.data.datasets[1].data = hist_sp.slice(start, end);
@@ -281,13 +350,22 @@
             trendChart.update('none'); 
         }
 
+        // ================= LOOP PRINCIPAL DO SISTEMA =================
         function executarCiclo() {
             let a0, a1, a2;
+            
+            // REQUISITO 3: Parâmetros PID mapeados para a Equação de Diferenças
             if (modoSintonia.value === 'pid') {
                 const Kp = parseFloat(document.getElementById('inp-kp').value);
                 const Ti = parseFloat(document.getElementById('inp-ti').value);
                 const Td = parseFloat(document.getElementById('inp-td').value);
-                a0 = Kp * (1 + (Ts / Ti) + (Td / Ts)); a1 = -Kp * (1 + 2 * (Td / Ts)); a2 = Kp * (Td / Ts);
+                
+                // Fórmulas de conversão clássicas (Tustin / Retângulo)
+                a0 = Kp * (1 + (Ts / Ti) + (Td / Ts)); 
+                a1 = -Kp * (1 + 2 * (Td / Ts)); 
+                a2 = Kp * (Td / Ts);
+                
+                // Exibe os valores calculados na interface
                 document.getElementById('inp-a0').value = a0.toFixed(4);
                 document.getElementById('inp-a1').value = a1.toFixed(4);
                 document.getElementById('inp-a2').value = a2.toFixed(4);
@@ -297,15 +375,18 @@
                 a2 = parseFloat(document.getElementById('inp-a2').value);
             }
 
+            // Lê as seleções da IHM
             let dir = document.getElementById('inp-acao').value === 'direta' ? -1 : 1;
             let mv_man_input = parseFloat(document.getElementById('inp-mv-man').value);
             let antiBump = document.getElementById('chk-antibump').checked;
 
+            // Substitui a simulação da planta pelo input do operador se em modo passo
             if (modoTempo.value === 'passo') {
                 pv_atual = parseFloat(document.getElementById('inp-pv-manual').value);
             }
 
-            // Lógica rigorosa de Tracking
+            // REQUISITO 6: Tracking de Setpoint
+            // Se ativado e estiver em modo manual, força o SP a igualar à PV atual
             let spTrackingAtivo = chkSpTracking.checked;
             if (!isAuto && spTrackingAtivo) {
                 inpSp.value = pv_atual.toFixed(2);
@@ -314,60 +395,92 @@
             let sp_input = parseFloat(inpSp.value);
             if (isNaN(sp_input)) sp_input = pv_atual;
 
+            // Chama a classe de controle para resolver o próximo k
             const resultado = pid.calcular(sp_input, pv_atual, a0, a1, a2, dir, isAuto, mv_man_input, antiBump);
             const mv_aplicada = resultado.mv;
 
+            // --- SIMULAÇÃO DA PLANTA TÉRMICA (Modelo de Primeira Ordem) ---
             if (modoTempo.value === 'continuo') {
+                // Lê os parâmetros da planta genérica G(s) = K / (τs + 1)
                 let k_pl = parseFloat(document.getElementById('inp-pl-k').value);
                 let tau_pl = parseFloat(document.getElementById('inp-pl-tau').value);
                 let bias_pl = parseFloat(document.getElementById('inp-pl-bias').value);
-                if (tau_pl < 0.1) tau_pl = 0.1; 
+                
+                if (tau_pl < 0.1) tau_pl = 0.1; // Evita divisão por zero
+                
+                // Discretização matemática da planta usando o método Zero-Order Hold (ZOH)
+                // A constante alpha determina a inércia exponencial
                 let alpha = Math.exp(-Ts / tau_pl);
+                
+                // Calcula o ponto futuro de estabilização térmica ditado pela MV atual
                 let pv_regime = (k_pl * mv_aplicada) + bias_pl;
+                
+                // Aplica a equação de diferenças recursiva e adiciona um leve ruído branco (-0.05 a +0.05)
                 pv_atual = (pv_atual * alpha) + (pv_regime * (1 - alpha)) + ((Math.random()-0.5)*0.1);
             }
 
+            // Atualiza os painéis numéricos
             document.getElementById('disp-pv').innerText = pv_atual.toFixed(2);
             document.getElementById('disp-sp').innerText = resultado.novoSp.toFixed(2);
             document.getElementById('disp-erro').innerText = resultado.erro.toFixed(2);
             document.getElementById('disp-mv').innerText = mv_aplicada.toFixed(2) + ' %';
 
+            // Registo de dados para o histórico
             tickCount++;
             let m = Math.floor(tickCount / 60).toString().padStart(2, '0');
             let s = (tickCount % 60).toString().padStart(2, '0');
             
             hist_labels.push(`${m}:${s}`); hist_pv.push(pv_atual); hist_sp.push(resultado.novoSp); hist_mv.push(mv_aplicada);
-            if(hist_labels.length > maxHistorico) { hist_labels.shift(); hist_pv.shift(); hist_sp.shift(); hist_mv.shift(); }
+            
+            // Remove o dado mais antigo (FIFO) caso passe de 1 Hora (3600 amostras)
+            if(hist_labels.length > maxHistorico) { 
+                hist_labels.shift(); hist_pv.shift(); hist_sp.shift(); hist_mv.shift(); 
+            }
             atualizarGrafico();
         }
 
+        // Execução por botão (Modo Passo)
         btnAvancar.addEventListener('click', executarCiclo);
 
+        // Controladores de Tempo Real
         function iniciarClock() { if(!clockTimer) clockTimer = setInterval(executarCiclo, Ts * 1000); }
         function pararClock() { clearInterval(clockTimer); clockTimer = null; }
 
+        // ================= TRANSFERÊNCIA AUTO/MANUAL =================
         const btnAM = document.getElementById('btn-am'), inpMvMan = document.getElementById('inp-mv-man');
         
         btnAM.addEventListener('click', () => {
             isAuto = !isAuto;
             if (isAuto) {
+                // REQUISITO 4 e 5: TRANSIÇÃO PARA AUTOMÁTICO (Bumpless)
                 btnAM.className = 'btn-toggle btn-auto'; btnAM.innerText = 'MODO AUTOMÁTICO';
                 inpMvMan.disabled = true;
-                inpSp.disabled = false; // Campo sempre livre no Automático
+                inpSp.disabled = false; // O SP volta a ficar livre
+                
+                // LÓGICA DE OVERRIDE: Força o SP a receber o valor final que estava na MV manual
+                // Excelente para simular sistemas em cascata ou controle direto de razão.
+                let valorMvAtual = parseFloat(inpMvMan.value);
+                if (!isNaN(valorMvAtual)) {
+                    inpSp.value = valorMvAtual.toFixed(2);
+                    document.getElementById('disp-sp').innerText = valorMvAtual.toFixed(2);
+                }
+                
             } else {
+                // TRANSIÇÃO PARA MANUAL
                 btnAM.className = 'btn-toggle btn-manual'; btnAM.innerText = 'MODO MANUAL';
                 inpMvMan.disabled = false;
                 
-                // VM Tracking: Inicia com o valor atual para evitar Bump de MV
+                // Função Tracking de VM: Preenche o input manual com a MV atual para evitar pulos
                 inpMvMan.value = parseFloat(document.getElementById('disp-mv').innerText).toFixed(2);
 
-                // SP Tracking: Bloqueia a edição se ativado
+                // Bloqueia a edição do SP se o Tracking estiver ativado
                 if (chkSpTracking.checked) {
                     inpSp.disabled = true;
                 }
             }
         });
 
+        // Inicia a malha de controle imediatamente ao carregar
         iniciarClock();
 
     </script>
