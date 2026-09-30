@@ -75,7 +75,6 @@
     <div class="subtitle">Sintonia PID, Simulação e Modo Passo a Passo</div>
 
     <div class="dashboard">
-        <!-- PAINEL ESQUERDO: CONFIGURAÇÕES -->
         <div class="panel">
             <h2>1. TEMPO E EXECUÇÃO</h2>
             <div class="form-group">
@@ -121,7 +120,6 @@
                 </select>
             </div>
 
-            <!-- NOVA OPÇÃO ANTI BUMP -->
             <div class="form-group section-box">
                 <label style="color: var(--accent); font-weight: bold; cursor: pointer;">
                     <input type="checkbox" id="chk-antibump" class="chk-antibump" checked> 
@@ -137,9 +135,9 @@
             <h2 style="margin-top: 10px;">PLANTA (Apenas Modo Contínuo)</h2>
             <div class="form-group"><label>Ganho (K):</label><input type="number" id="inp-pl-k" value="1.0" step="0.1"></div>
             <div class="form-group"><label>Tempo (τ):</label><input type="number" id="inp-pl-tau" value="10" step="1"></div>
+            <div class="form-group"><label title="Valor quando MV = 0">Bias (Repouso):</label><input type="number" id="inp-pl-bias" value="0" step="1"></div>
         </div>
 
-        <!-- PAINEL DIREITO: GRÁFICO E DISPLAYS -->
         <div class="panel">
             <div class="displays">
                 <div class="display-box"><div class="label">PV (Processo)</div><div class="value" id="disp-pv">0.00</div></div>
@@ -150,7 +148,6 @@
             
             <canvas id="trendChart" width="800" height="350"></canvas>
             
-            <!-- HISTÓRICO OCULTO POR PADRÃO -->
             <details class="history-details">
                 <summary>Visualizar Ferramentas de Histórico</summary>
                 <div class="history-controls">
@@ -186,8 +183,6 @@
 
                 let deltaU = deltaPI + deltaD;
 
-                // LOGICA ANTI BUMP (Slew Rate Limiter)
-                // Se ativado, impede que a MV sofra degraus, limitando a variação a 2.5% por ciclo
                 if (antiBump) {
                     const maxVariavel = 2.5; 
                     if (deltaU > maxVariavel) deltaU = maxVariavel;
@@ -233,7 +228,6 @@
             }
         });
 
-        // Eventos de UI
         const modoSintonia = document.getElementById('inp-modo-sintonia');
         const boxPid = document.getElementById('box-pid'), boxCoef = document.getElementById('box-coef');
         const chkRealtime = document.getElementById('chk-realtime'), inpJanela = document.getElementById('inp-janela'), sliderHist = document.getElementById('slider-hist');
@@ -248,10 +242,10 @@
         modoTempo.addEventListener('change', (e) => {
             if(e.target.value === 'continuo') {
                 boxPasso.classList.add('disabled-box');
-                iniciarClock(); // Retoma tempo real
+                iniciarClock(); 
             } else {
                 boxPasso.classList.remove('disabled-box');
-                pararClock(); // Pausa tempo real para avanço manual
+                pararClock(); 
                 document.getElementById('inp-pv-manual').value = pv_atual.toFixed(2);
             }
         });
@@ -276,7 +270,6 @@
             trendChart.update('none'); 
         }
 
-        // FUNÇÃO CENTRAL DE EXECUÇÃO DO CICLO
         function executarCiclo() {
             let a0, a1, a2;
             if (modoSintonia.value === 'pid') {
@@ -298,7 +291,6 @@
             let mv_man_input = parseFloat(document.getElementById('inp-mv-man').value);
             let antiBump = document.getElementById('chk-antibump').checked;
 
-            // Se estiver no modo passo a passo, a PV é forçada pelo input manual
             if (modoTempo.value === 'passo') {
                 pv_atual = parseFloat(document.getElementById('inp-pv-manual').value);
             }
@@ -306,15 +298,16 @@
             const resultado = pid.calcular(sp_input, pv_atual, a0, a1, a2, dir, isAuto, mv_man_input, true, antiBump);
             const mv_aplicada = resultado.mv;
 
-            if (!isAuto && sp_input !== resultado.novoSp) { document.getElementById('inp-sp').value = resultado.novoSp.toFixed(1); }
+            // Mantém a sincronia em automático
+            if (!isAuto && sp_input !== resultado.novoSp) { document.getElementById('inp-sp').value = resultado.novoSp.toFixed(2); }
 
-            // Se for Contínuo, simula a Planta G(s)
             if (modoTempo.value === 'continuo') {
                 let k_pl = parseFloat(document.getElementById('inp-pl-k').value);
                 let tau_pl = parseFloat(document.getElementById('inp-pl-tau').value);
+                let bias_pl = parseFloat(document.getElementById('inp-pl-bias').value);
                 if (tau_pl < 0.1) tau_pl = 0.1; 
                 let alpha = Math.exp(-Ts / tau_pl);
-                let pv_regime = (k_pl * mv_aplicada) + 0; // Bias 0 padrao
+                let pv_regime = (k_pl * mv_aplicada) + bias_pl;
                 pv_atual = (pv_atual * alpha) + (pv_regime * (1 - alpha)) + ((Math.random()-0.5)*0.1);
             }
 
@@ -332,15 +325,13 @@
             atualizarGrafico();
         }
 
-        // Avanço manual
         btnAvancar.addEventListener('click', executarCiclo);
 
-        // Controlos de Loop
         function iniciarClock() { if(!clockTimer) clockTimer = setInterval(executarCiclo, Ts * 1000); }
         function pararClock() { clearInterval(clockTimer); clockTimer = null; }
 
-        // Botão Auto/Manual
         const btnAM = document.getElementById('btn-am'), inpMvMan = document.getElementById('inp-mv-man'), inpSp = document.getElementById('inp-sp');
+        
         btnAM.addEventListener('click', () => {
             isAuto = !isAuto;
             if (isAuto) {
@@ -350,10 +341,14 @@
                 btnAM.className = 'btn-toggle btn-manual'; btnAM.innerText = 'MODO MANUAL';
                 inpMvMan.disabled = false; inpSp.disabled = true; 
                 inpMvMan.value = parseFloat(document.getElementById('disp-mv').innerText).toFixed(1);
+                
+                // ESCRITA IMEDIATA DO SETPOINT = PV (Tracking visual instantâneo)
+                inpSp.value = pv_atual.toFixed(2);
+                document.getElementById('disp-sp').innerText = pv_atual.toFixed(2);
+                document.getElementById('disp-erro').innerText = "0.00";
             }
         });
 
-        // Arranque Inicial
         iniciarClock();
 
     </script>
