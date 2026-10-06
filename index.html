@@ -73,19 +73,31 @@
         .displays { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 15px; }
         .display-box {
             flex: 1; background-color: #000; border: 2px solid var(--border);
-            border-radius: 6px; padding: 10px; text-align: center;
+            border-radius: 6px; padding: 10px; text-align: center; transition: all 0.3s;
         }
-        .display-box .label { font-size: 0.8em; color: #888; }
+        .display-box .label { font-size: 0.8em; color: #888; transition: color 0.3s; }
         .display-box .value { font-size: 1.5em; font-family: 'Courier New', Courier, monospace; color: #0f0; }
         
         /* Cores específicas para os valores nos displays */
-        .val-sp { color: #00ffff !important; }   /* Ciano para o Setpoint */
-        .val-mv { color: #ff00ff !important; }   /* Magenta para a Variável Manipulada */
-        .val-err { color: var(--warn) !important; } /* Amarelo para o Erro */
+        .val-sp { color: #00ffff !important; }   
+        .val-mv { color: #ff00ff !important; }   
+        .val-err { color: var(--warn) !important; } 
+
+        /* ANIMAÇÃO DE ALERTA DE SATURAÇÃO DA MV */
+        @keyframes piscar-vermelho {
+            0% { background-color: #000; border-color: var(--border); box-shadow: none; }
+            50% { background-color: #4a0000; border-color: #ff3333; box-shadow: 0 0 15px rgba(255, 0, 0, 0.6); }
+            100% { background-color: #000; border-color: var(--border); box-shadow: none; }
+        }
+        .saturado-box {
+            animation: piscar-vermelho 1.2s infinite; /* Faz a caixa piscar */
+        }
+        .saturado-text {
+            color: #ff5555 !important;
+            font-weight: bold;
+        }
 
         canvas { background-color: #1e1e1e; border-radius: 4px; }
-        
-        /* Classe para desativar/esconder visualmente áreas que não estão em uso */
         .disabled-box { opacity: 0.5; pointer-events: none; }
     </style>
 </head>
@@ -99,11 +111,8 @@
         <div class="panel">
             <h2>Parâmetros do Processo (Planta)</h2>
             <div class="section-box" id="box-planta">
-                <!-- Ganho do processo (O quão forte a MV afeta a PV) -->
                 <div class="form-group"><label>Ganho (K):</label><input type="number" id="inp-k-planta" value="0.5" step="0.1"></div>
-                <!-- Constante de tempo (Inércia térmica/física do processo) -->
                 <div class="form-group"><label>Const. Tempo (a):</label><input type="number" id="inp-tau-planta" value="0.95" step="0.01"></div>
-                <!-- Bias (Valor natural do processo quando a MV é 0%) -->
                 <div class="form-group"><label>Bias (Base):</label><input type="number" id="inp-bias-planta" value="25" step="1"></div>
             </div>
 
@@ -117,16 +126,13 @@
                 </select>
             </div>
 
-            <!-- Caixa de parâmetros clássicos (Visível por defeito) -->
             <div class="section-box" id="box-pid">
                 <div class="form-group"><label>Kp:</label><input type="number" id="inp-kp" value="1.5" step="0.1"></div>
                 <div class="form-group"><label>Ti (s):</label><input type="number" id="inp-ti" value="15" step="1"></div>
                 <div class="form-group"><label>Td (s):</label><input type="number" id="inp-td" value="2" step="0.5"></div>
-                <!-- O tempo de amostragem (Ts) está fixo e desativado para corresponder ao ciclo do Javascript -->
                 <div class="form-group"><label>Ts (s):</label><input type="number" id="inp-ts" value="1" step="0.1" disabled></div>
             </div>
 
-            <!-- Caixa de coeficientes diretos (Fica translúcida se não for selecionada) -->
             <div class="section-box disabled-box" id="box-coef">
                 <div class="form-group"><label>a0:</label><input type="number" id="inp-a0" value="0.00" step="0.01"></div>
                 <div class="form-group"><label>a1:</label><input type="number" id="inp-a1" value="0.00" step="0.01"></div>
@@ -142,7 +148,6 @@
                 </select>
             </div>
 
-            <!-- Botão e campos de operação do operador -->
             <button id="btn-am" class="btn-toggle btn-auto">MODO AUTOMÁTICO</button>
             <div class="form-group" style="margin-top: 15px;"><label>Setpoint (SP):</label><input type="number" id="inp-sp" value="50" step="1"></div>
             <div class="form-group"><label>MV Manual (%):</label><input type="number" id="inp-mv-man" value="0" step="1" disabled></div>
@@ -154,126 +159,97 @@
                 <div class="display-box"><div class="label">PV (Processo)</div><div class="value" id="disp-pv">0.00</div></div>
                 <div class="display-box"><div class="label">SP (Setpoint)</div><div class="value val-sp" id="disp-sp">50.00</div></div>
                 <div class="display-box"><div class="label">Erro (SP - PV)</div><div class="value val-err" id="disp-erro">0.00</div></div>
-                <div class="display-box"><div class="label">MV (Manipulada)</div><div class="value val-mv" id="disp-mv">0.00 %</div></div>
+                <!-- ID no contentor para facilitar a aplicação do efeito de alerta CSS -->
+                <div class="display-box" id="box-disp-mv"><div class="label" id="label-disp-mv">MV (Manipulada)</div><div class="value val-mv" id="disp-mv">0.00 %</div></div>
             </div>
-            <!-- Tela (Canvas) onde o Chart.js desenhará o gráfico -->
             <canvas id="trendChart" width="800" height="400"></canvas>
         </div>
     </div>
 
-    <!-- CÓDIGO JAVASCRIPT: MOTOR DA SIMULAÇÃO E CONTROLADOR -->
+    <!-- CÓDIGO JAVASCRIPT -->
     <script>
-        // O evento DOMContentLoaded garante que o script só corre depois do ecrã estar totalmente carregado
         document.addEventListener('DOMContentLoaded', () => {
             
-            /**
-             * Função de segurança: getVal
-             * Obtém o valor de um input numérico da página HTML.
-             * Converte eventuais vírgulas em pontos e previne falhas de cálculo (NaN).
-             * @param {string} id - O ID do input HTML.
-             * @param {number} def - O valor por defeito a retornar caso haja erro.
-             */
             function getVal(id, def = 0) {
                 const el = document.getElementById(id);
                 if (!el) return def;
-                let val = String(el.value).replace(',', '.'); // Troca vírgula por ponto (Problema comum em pt-BR/pt-PT)
+                let val = String(el.value).replace(',', '.'); 
                 let num = parseFloat(val);
-                return isNaN(num) ? def : num; // Se o valor não for um número válido, devolve o defeito
+                return isNaN(num) ? def : num; 
             }
 
-            /**
-             * Classe: ControladorDigitalPID
-             * Implementa a lógica matemática do controlador PID na forma Incremental (Algoritmo de Velocidade).
-             * Em vez de calcular a saída absoluta, calcula a variação (Delta U) necessária.
-             */
             class ControladorDigitalPID {
                 constructor(outMin = 0, outMax = 100) {
-                    this.outMin = outMin;   // Limite inferior da Válvula/Potência (0%)
-                    this.outMax = outMax;   // Limite superior da Válvula/Potência (100%)
-                    
-                    // Memória de estados passados (O "k" representa a amostra atual, "k1" a anterior e "k2" duas atrás)
-                    this.e_k1 = 0;          // Erro na amostra anterior [e(k-1)]
-                    this.pv_k1 = 0;         // PV na amostra anterior [pv(k-1)]
-                    this.pv_k2 = 0;         // PV em duas amostras atrás [pv(k-2)]
-                    this.u_k1 = 0;          // Saída MV na amostra anterior [u(k-1)]
+                    this.outMin = outMin;   
+                    this.outMax = outMax;   
+                    this.e_k1 = 0;          
+                    this.pv_k1 = 0;         
+                    this.pv_k2 = 0;         
+                    this.u_k1 = 0;          
                 }
 
-                /**
-                 * Método principal que calcula o algoritmo do PID.
-                 */
                 calcular(sp, pv, a0, a1, a2, dir, isAuto, manualMv, spTrackingAtivo = true) {
-                    let erroReal = sp - pv;       // Erro matemático puro
-                    let e_k = dir * erroReal;     // Erro ajustado pela Ação (Reversa/Direta)
+                    let erroReal = sp - pv;       
+                    let e_k = dir * erroReal;     
 
-                    // LÓGICA MODO MANUAL
                     if (!isAuto) {
-                        // Se "Setpoint Tracking" ativo, o SP persegue a PV passivamente.
-                        // Evita o salto brusco (bump) ao passar para automático.
                         if (spTrackingAtivo) sp = pv; 
-                        
-                        // Garante que a entrada manual do operador respeita os limites 0 a 100%
                         let u_manual = Math.max(this.outMin, Math.min(this.outMax, manualMv));
                         
-                        // "Atualiza o passado" com os valores atuais. 
-                        // Assim, quando voltar a Automático, não haverá saltos nos cálculos derivados.
                         this.u_k1 = u_manual; 
                         this.e_k1 = dir * (sp - pv);
                         this.pv_k1 = pv;
                         this.pv_k2 = pv;
                         
-                        return { mv: u_manual, novoSp: sp, erro: erroReal }; 
+                        // Retorna também a flag de saturação para o modo manual
+                        let manualSaturado = (u_manual <= this.outMin || u_manual >= this.outMax);
+                        return { mv: u_manual, novoSp: sp, erro: erroReal, saturado: manualSaturado }; 
                     }
-
-                    // LÓGICA MODO AUTOMÁTICO (Cálculo do PID)
                     
-                    // Adaptação para Derivada sobre a PV (e não sobre o erro).
-                    // Evita "Derivative Kick" (pico abrupto) quando o operador altera o Setpoint manualmente.
                     let a0_PI = a0 - a2;
                     let a1_PI = a1 + 2 * a2;
 
-                    // Calcula a variação Proporcional e Integral (Delta PI)
                     let deltaPI = (a0_PI * e_k) + (a1_PI * this.e_k1);
-                    // Calcula a variação Derivativa (Delta D) agindo diretamente na alteração da Variável de Processo
                     let deltaD = -dir * a2 * (pv - 2 * this.pv_k1 + this.pv_k2);
 
-                    let deltaU = deltaPI + deltaD;   // Variação total que a MV tem de sofrer (Velocidade)
-                    let u_k = this.u_k1 + deltaU;    // Soma a variação calculada à MV do ciclo anterior
+                    let deltaU = deltaPI + deltaD;   
+                    let u_k = this.u_k1 + deltaU;    
 
-                    // Anti-Reset Windup (Saturação da Saída)
+                    // Deteção e aplicação do Anti-Reset Windup (Saturação da Saída)
+                    let isSaturado = false;
+                    if (u_k <= this.outMin || u_k >= this.outMax) {
+                        isSaturado = true; // A saída excedeu os limites
+                    }
+
                     // Se o controlador pedir 110%, corta para 100%. Se pedir -10%, corta para 0%.
                     u_k = Math.max(this.outMin, Math.min(this.outMax, u_k));
 
-                    // Atualiza a memória de histórico para o próximo ciclo
                     this.e_k1 = e_k;
                     this.pv_k2 = this.pv_k1;
                     this.pv_k1 = pv;
                     this.u_k1 = u_k;
 
-                    // Retorna a nova MV calculada, o SP atualizado (caso estivesse em manual antes) e o erro.
-                    return { mv: u_k, novoSp: sp, erro: erroReal };
+                    // A função devolve agora a propriedade "saturado" para acionar o alerta
+                    return { mv: u_k, novoSp: sp, erro: erroReal, saturado: isSaturado };
                 }
             }
             
-            // --- Variáveis Globais da IHM ---
-            let isAuto = true;       // Estado inicial: Automático
-            let pv_atual = 25.0;     // Estado inicial da Planta (Ex: 25 Graus de ambiente)
-            const Ts = 1;            // Tempo de Amostragem Fixo em 1 segundo
+            let isAuto = true;       
+            let pv_atual = 25.0;     
+            const Ts = 1;            
             
-            // Instancia o controlador
             const pid = new ControladorDigitalPID(0, 100);
             pid.pv_k1 = pv_atual;
             pid.pv_k2 = pv_atual;
 
-            // --- INICIALIZAÇÃO DO GRÁFICO (CHART.JS) ---
             let trendChart = null;
             try {
-                // Tenta instanciar o gráfico apenas se a biblioteca carregou (evita erros fatais sem internet)
                 if (typeof Chart !== 'undefined') {
                     const ctx = document.getElementById('trendChart').getContext('2d');
                     trendChart = new Chart(ctx, {
                         type: 'line',
                         data: {
-                            labels: Array(60).fill(''), // Mantém o histórico de 60 amostras no eixo X
+                            labels: Array(60).fill(''), 
                             datasets: [
                                 { label: 'PV', borderColor: '#00ff00', data: Array(60).fill(25), pointRadius: 0, tension: 0.1 },
                                 { label: 'SP', borderColor: '#00ffff', data: Array(60).fill(50), pointRadius: 0, borderDash: [5, 5] },
@@ -283,9 +259,7 @@
                         options: {
                             responsive: true, animation: false,
                             scales: {
-                                // Escala principal esquerda para a PV e SP (0 a 100 por defeito)
                                 y: { min: 0, max: 100, title: { display: true, text: 'Variáveis (PV / SP)', color: '#fff' }, grid: { color: '#333' } },
-                                // Escala secundária direita dedicada à MV (Sempre 0 a 100%)
                                 y1: { min: 0, max: 100, position: 'right', title: { display: true, text: 'MV (%)', color: '#fff' }, grid: { drawOnChartArea: false } },
                                 x: { grid: { color: '#333' } }
                             },
@@ -294,11 +268,9 @@
                     });
                 }
             } catch(e) {
-                // Falha suave (Graceful Degradation): Se o Chart.js falhar, escreve um aviso no ecrã.
                 console.warn("Chart.js não carregado.", e);
             }
 
-            // --- SELETORES DE ELEMENTOS HTML ---
             const modoSintonia = document.getElementById('inp-modo-sintonia');
             const boxPid = document.getElementById('box-pid');
             const boxCoef = document.getElementById('box-coef');
@@ -306,7 +278,6 @@
             const inpA1 = document.getElementById('inp-a1');
             const inpA2 = document.getElementById('inp-a2');
 
-            // Alternância visual entre caixas de parâmetros clássicos vs coeficientes
             modoSintonia.addEventListener('change', (e) => {
                 if(e.target.value === 'pid') {
                     boxPid.classList.remove('disabled-box');
@@ -317,73 +288,75 @@
                 }
             });
 
-            // --- LAÇO PRINCIPAL DO SISTEMA (CICLO DE SCAN DA SIMULAÇÃO) ---
-            // A função corre a cada Ts segundos (1000 milissegundos)
             setInterval(() => {
                 let a0, a1, a2;
                 
-                // 1. Ler parâmetros do controlador com base no modo escolhido
                 if (modoSintonia.value === 'pid') {
                     const Kp = getVal('inp-kp', 1.5);
                     const Ti = getVal('inp-ti', 15);
                     const Td = getVal('inp-td', 2);
                     
-                    // Converte os ganhos P, I e D do tempo contínuo para os coeficientes discretos a0, a1, a2
                     a0 = Kp * (1 + (Ts / Ti) + (Td / Ts));
                     a1 = -Kp * (1 + 2 * (Td / Ts));
                     a2 = Kp * (Td / Ts);
 
-                    // Escreve os valores convertidos nos inputs, para que o operador possa monitorizar
                     if(inpA0) inpA0.value = a0.toFixed(4);
                     if(inpA1) inpA1.value = a1.toFixed(4);
                     if(inpA2) inpA2.value = a2.toFixed(4);
                 } else {
-                    // O operador fornece diretamente a0, a1 e a2
                     a0 = getVal('inp-a0', 0);
                     a1 = getVal('inp-a1', 0);
                     a2 = getVal('inp-a2', 0);
                 }
 
-                // Verifica a lógica da atuação
                 let acaoEl = document.getElementById('inp-acao');
                 let dir = (acaoEl && acaoEl.value === 'direta') ? -1 : 1;
                 
-                // Lê o Setpoint e o valor Manual pretendido da IHM
                 let sp_input = getVal('inp-sp', 50);
                 const mv_man_input = getVal('inp-mv-man', 0);
 
-                // 2. Aciona o bloco Matemático do PID
+                // Cálculo do PID
                 const resultado = pid.calcular(sp_input, pv_atual, a0, a1, a2, dir, isAuto, mv_man_input, true);
-                const mv_aplicada = resultado.mv; // Este é o sinal que será enviado à Planta Física (0 a 100)
+                const mv_aplicada = resultado.mv; 
 
-                // Atualiza o Setpoint visual na IHM se estiver em modo Manual (SP Tracking)
                 let spEl = document.getElementById('inp-sp');
                 if (!isAuto && sp_input !== resultado.novoSp && spEl) {
                     spEl.value = resultado.novoSp.toFixed(1);
                 }
 
-                // 3. SIMULAÇÃO DO PROCESSO (A PLANTA FÍSICA / FENÓMENO)
-                let k_planta = getVal('inp-k-planta', 0.5);       // Ganho Estático do sistema real
-                let tau_planta = getVal('inp-tau-planta', 0.95);  // Atraso de 1ª ordem do sistema real
-                let bias_planta = getVal('inp-bias-planta', 25);  // Ponto de inércia zero
-                
-                // Gera um leve ruído branco (variação entre -0.25 e +0.25) para dar aspeto real e dificultar o trabalho do PID
+                // Simulação da Planta
+                let k_planta = getVal('inp-k-planta', 0.5);       
+                let tau_planta = getVal('inp-tau-planta', 0.95);  
+                let bias_planta = getVal('inp-bias-planta', 25);  
                 let perturbacao = (Math.random() - 0.5) * 0.5; 
                 
-                // Equação às diferenças linear (Filtro passa-baixo de 1ª Ordem que simula Inércia e Ganho)
-                // Nota: Esta equação representa a Física real interagindo com a Válvula (mv_aplicada).
                 pv_atual = (pv_atual * tau_planta) + 
                            (bias_planta * (1 - tau_planta)) + 
                            (mv_aplicada * k_planta * (1 - tau_planta)) + 
                            perturbacao;
 
-                // 4. ATUALIZAÇÃO VISUAL DOS DISPLAYS E GRÁFICOS (IHM)
+                // Atualização dos displays no ecrã
                 document.getElementById('disp-pv').innerText = pv_atual.toFixed(2);
                 document.getElementById('disp-sp').innerText = resultado.novoSp.toFixed(2);
                 document.getElementById('disp-erro').innerText = resultado.erro.toFixed(2);
                 document.getElementById('disp-mv').innerText = mv_aplicada.toFixed(2) + ' %';
 
-                // Desenha a "Pena" do gráfico e arrasta os dados mais antigos para a esquerda
+                // --- LÓGICA VISUAL DO ALERTA DE SATURAÇÃO ---
+                let boxDispMv = document.getElementById('box-disp-mv');
+                let labelDispMv = document.getElementById('label-disp-mv');
+                
+                if (resultado.saturado) {
+                    // Adiciona classes CSS para piscar a caixa e alterar a cor do texto
+                    boxDispMv.classList.add('saturado-box');
+                    labelDispMv.classList.add('saturado-text');
+                    labelDispMv.innerText = "MV (SATURADA!)";
+                } else {
+                    // Remove o alerta caso a MV volte à normalidade (entre 1% e 99%)
+                    boxDispMv.classList.remove('saturado-box');
+                    labelDispMv.classList.remove('saturado-text');
+                    labelDispMv.innerText = "MV (Manipulada)";
+                }
+
                 if (trendChart) {
                     trendChart.data.datasets[0].data.shift(); trendChart.data.datasets[0].data.push(pv_atual);
                     trendChart.data.datasets[1].data.shift(); trendChart.data.datasets[1].data.push(resultado.novoSp);
@@ -391,37 +364,32 @@
                     trendChart.update();
                 }
 
-            }, Ts * 1000); // Fim do SetInterval
+            }, Ts * 1000); 
 
-            // --- LOGÍCA DO BOTÃO AUTOMÁTICO/MANUAL ---
             const btnAM = document.getElementById('btn-am');
             const inpMvMan = document.getElementById('inp-mv-man');
             const inpSp = document.getElementById('inp-sp');
 
             if(btnAM) {
                 btnAM.addEventListener('click', () => {
-                    isAuto = !isAuto; // Inverte o estado
+                    isAuto = !isAuto; 
                     
                     if (isAuto) {
-                        // Passou de Manual -> Automático
                         btnAM.className = 'btn-toggle btn-auto';
                         btnAM.innerText = 'MODO AUTOMÁTICO';
-                        if(inpMvMan) inpMvMan.disabled = true; // Bloqueia a MV
+                        if(inpMvMan) inpMvMan.disabled = true; 
                         if(inpSp) {
-                            inpSp.disabled = false; // Desbloqueia o SP
-                            // REQUISITO CUMPRIDO: Escreve o último valor manual colocado na MV dentro do Setpoint
+                            inpSp.disabled = false; 
                             inpSp.value = getVal('inp-mv-man', 0).toFixed(1);
                         }
                     } else {
-                        // Passou de Automático -> Manual
                         btnAM.className = 'btn-toggle btn-manual';
                         btnAM.innerText = 'MODO MANUAL';
                         if(inpMvMan) {
-                            inpMvMan.disabled = false; // Desbloqueia a MV manual
-                            // Copia o último valor de MV calculado pelo automático para a caixa manual (Evita saltos abruptos da válvula)
+                            inpMvMan.disabled = false; 
                             inpMvMan.value = parseFloat(document.getElementById('disp-mv').innerText).toFixed(1);
                         }
-                        if(inpSp) inpSp.disabled = true; // Bloqueia o SP (o algoritmo entrará em SP Tracking)
+                        if(inpSp) inpSp.disabled = true; 
                     }
                 });
             }
