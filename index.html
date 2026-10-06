@@ -123,27 +123,215 @@
     </div>
 
     <script>
-        class ControladorDigitalPID {
-            constructor(outMin = 0, outMax = 100) {
-                this.outMin = outMin;
-                this.outMax = outMax; 
-                this.e_k1 = 0;
-                this.pv_k1 = 0;
-                this.pv_k2 = 0;
-                this.u_k1 = 0;
+        document.addEventListener('DOMContentLoaded', () => {
+            // Função segura para ler inputs (Trata vazios e troca vírgula por ponto)
+            function getVal(id, def = 0) {
+                const el = document.getElementById(id);
+                if (!el) return def;
+                let val = String(el.value).replace(',', '.');
+                let num = parseFloat(val);
+                return isNaN(num) ? def : num;
             }
 
-            calcular(sp, pv, a0, a1, a2, dir, isAuto, manualMv, spTrackingAtivo = true) {
-                let erroReal = sp - pv;
-                let e_k = dir * erroReal;
+            class ControladorDigitalPID {
+                constructor(outMin = 0, outMax = 100) {
+                    this.outMin = outMin;
+                    this.outMax = outMax; 
+                    this.e_k1 = 0;
+                    this.pv_k1 = 0;
+                    this.pv_k2 = 0;
+                    this.u_k1 = 0;
+                }
 
-                if (!isAuto) {
-                    if (spTrackingAtivo) sp = pv; 
-                    let u_manual = Math.max(this.outMin, Math.min(this.outMax, manualMv));
-                    
-                    this.u_k1 = u_manual; 
-                    this.e_k1 = dir * (sp - pv);
+                calcular(sp, pv, a0, a1, a2, dir, isAuto, manualMv, spTrackingAtivo = true) {
+                    let erroReal = sp - pv;
+                    let e_k = dir * erroReal;
+
+                    if (!isAuto) {
+                        if (spTrackingAtivo) sp = pv; 
+                        let u_manual = Math.max(this.outMin, Math.min(this.outMax, manualMv));
+                        
+                        this.u_k1 = u_manual; 
+                        this.e_k1 = dir * (sp - pv);
+                        this.pv_k1 = pv;
+                        this.pv_k2 = pv;
+                        
+                        return { mv: u_manual, novoSp: sp, erro: erroReal }; 
+                    }
+
+                    let a0_PI = a0 - a2;
+                    let a1_PI = a1 + 2 * a2;
+
+                    let deltaPI = (a0_PI * e_k) + (a1_PI * this.e_k1);
+                    let deltaD = -dir * a2 * (pv - 2 * this.pv_k1 + this.pv_k2);
+
+                    let deltaU = deltaPI + deltaD;
+                    let u_k = this.u_k1 + deltaU;
+
+                    u_k = Math.max(this.outMin, Math.min(this.outMax, u_k));
+
+                    this.e_k1 = e_k;
+                    this.pv_k2 = this.pv_k1;
                     this.pv_k1 = pv;
-                    this.pv_k2 = pv;
+                    this.u_k1 = u_k;
+
+                    return { mv: u_k, novoSp: sp, erro: erroReal };
+                }
+            }
+            
+            let isAuto = true;
+            let pv_atual = 25.0; 
+            const Ts = 1; 
+            
+            const pid = new ControladorDigitalPID(0, 100);
+            pid.pv_k1 = pv_atual;
+            pid.pv_k2 = pv_atual;
+
+            // Inicialização blindada do Chart.js (Evita travamento se estiver sem internet ou bloqueado)
+            let trendChart = null;
+            try {
+                if (typeof Chart !== 'undefined') {
+                    const ctx = document.getElementById('trendChart').getContext('2d');
+                    trendChart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: Array(60).fill(''),
+                            datasets: [
+                                { label: 'PV', borderColor: '#00ff00', data: Array(60).fill(25), pointRadius: 0, tension: 0.1 },
+                                { label: 'SP', borderColor: '#00ffff', data: Array(60).fill(50), pointRadius: 0, borderDash: [5, 5] },
+                                { label: 'MV (%)', borderColor: '#ff00ff', data: Array(60).fill(0), pointRadius: 0, yAxisID: 'y1' }
+                            ]
+                        },
+                        options: {
+                            responsive: true, animation: false,
+                            scales: {
+                                y: { min: 0, max: 100, title: { display: true, text: 'Variáveis (PV / SP)', color: '#fff' }, grid: { color: '#333' } },
+                                y1: { min: 0, max: 100, position: 'right', title: { display: true, text: 'MV (%)', color: '#fff' }, grid: { drawOnChartArea: false } },
+                                x: { grid: { color: '#333' } }
+                            },
+                            plugins: { legend: { labels: { color: '#fff' } } }
+                        }
+                    });
+                } else {
+                    throw new Error("Chart não definido");
+                }
+            } catch(e) {
+                console.warn("Chart.js não carregado. Controlador operando em modo texto.", e);
+                const canvas = document.getElementById('trendChart');
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = "#d16969";
+                ctx.font = "14px Arial";
+                ctx.fillText("Script do gráfico (Chart.js) bloqueado na rede.", 20, 50);
+                ctx.fillText("O controlador continua operando normalmente acima.", 20, 80);
+            }
+
+            const modoSintonia = document.getElementById('inp-modo-sintonia');
+            const boxPid = document.getElementById('box-pid');
+            const boxCoef = document.getElementById('box-coef');
+            const inpA0 = document.getElementById('inp-a0');
+            const inpA1 = document.getElementById('inp-a1');
+            const inpA2 = document.getElementById('inp-a2');
+
+            modoSintonia.addEventListener('change', (e) => {
+                if(e.target.value === 'pid') {
+                    boxPid.classList.remove('disabled-box');
+                    boxCoef.classList.add('disabled-box');
+                } else {
+                    boxPid.classList.add('disabled-box');
+                    boxCoef.classList.remove('disabled-box');
+                }
+            });
+
+            setInterval(() => {
+                let a0, a1, a2;
+                
+                if (modoSintonia.value === 'pid') {
+                    const Kp = getVal('inp-kp', 1.5);
+                    const Ti = getVal('inp-ti', 15);
+                    const Td = getVal('inp-td', 2);
                     
-                    return { mv: u_manual, novoSp: sp, erro: erroReal };
+                    a0 = Kp * (1 + (Ts / Ti) + (Td / Ts));
+                    a1 = -Kp * (1 + 2 * (Td / Ts));
+                    a2 = Kp * (Td / Ts);
+
+                    if(inpA0) inpA0.value = a0.toFixed(4);
+                    if(inpA1) inpA1.value = a1.toFixed(4);
+                    if(inpA2) inpA2.value = a2.toFixed(4);
+                } else {
+                    a0 = getVal('inp-a0', 0);
+                    a1 = getVal('inp-a1', 0);
+                    a2 = getVal('inp-a2', 0);
+                }
+
+                let acaoEl = document.getElementById('inp-acao');
+                let dir = (acaoEl && acaoEl.value === 'direta') ? -1 : 1;
+                
+                let sp_input = getVal('inp-sp', 50);
+                const mv_man_input = getVal('inp-mv-man', 0);
+
+                const resultado = pid.calcular(sp_input, pv_atual, a0, a1, a2, dir, isAuto, mv_man_input, true);
+                const mv_aplicada = resultado.mv;
+
+                let spEl = document.getElementById('inp-sp');
+                if (!isAuto && sp_input !== resultado.novoSp && spEl) {
+                    spEl.value = resultado.novoSp.toFixed(1);
+                }
+
+                // --- LÓGICA DA PLANTA GENÉRICA BLINDADA ---
+                let k_planta = getVal('inp-k-planta', 0.5);
+                let tau_planta = getVal('inp-tau-planta', 0.95);
+                let bias_planta = getVal('inp-bias-planta', 25);
+                let perturbacao = (Math.random() - 0.5) * 0.5; 
+                
+                pv_atual = (pv_atual * tau_planta) + 
+                           (bias_planta * (1 - tau_planta)) + 
+                           (dir * mv_aplicada * k_planta * (1 - tau_planta)) + 
+                           perturbacao;
+
+                // Atualização dos displays
+                document.getElementById('disp-pv').innerText = pv_atual.toFixed(2);
+                document.getElementById('disp-sp').innerText = resultado.novoSp.toFixed(2);
+                document.getElementById('disp-erro').innerText = resultado.erro.toFixed(2);
+                document.getElementById('disp-mv').innerText = mv_aplicada.toFixed(2) + ' %';
+
+                // Atualização do gráfico apenas se ele carregou com sucesso
+                if (trendChart) {
+                    trendChart.data.datasets[0].data.shift(); trendChart.data.datasets[0].data.push(pv_atual);
+                    trendChart.data.datasets[1].data.shift(); trendChart.data.datasets[1].data.push(resultado.novoSp);
+                    trendChart.data.datasets[2].data.shift(); trendChart.data.datasets[2].data.push(mv_aplicada);
+                    trendChart.update();
+                }
+
+            }, Ts * 1000);
+
+            const btnAM = document.getElementById('btn-am');
+            const inpMvMan = document.getElementById('inp-mv-man');
+            const inpSp = document.getElementById('inp-sp');
+
+            if(btnAM) {
+                btnAM.addEventListener('click', () => {
+                    isAuto = !isAuto;
+                    if (isAuto) {
+                        btnAM.className = 'btn-toggle btn-auto';
+                        btnAM.innerText = 'MODO AUTOMÁTICO';
+                        if(inpMvMan) inpMvMan.disabled = true;
+                        if(inpSp) {
+                            inpSp.disabled = false;
+                            // REQUISITO: Escreve o valor da MV no Setpoint ao voltar para AUTO
+                            inpSp.value = getVal('inp-mv-man', 0).toFixed(1);
+                        }
+                    } else {
+                        btnAM.className = 'btn-toggle btn-manual';
+                        btnAM.innerText = 'MODO MANUAL';
+                        if(inpMvMan) {
+                            inpMvMan.disabled = false;
+                            inpMvMan.value = parseFloat(document.getElementById('disp-mv').innerText).toFixed(1);
+                        }
+                        if(inpSp) inpSp.disabled = true; 
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
