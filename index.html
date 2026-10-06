@@ -1,276 +1,455 @@
 <!DOCTYPE html>
+<!-- Define o idioma do documento. Embora o original seja pt-BR, os comentários foram adaptados para pt-PT -->
 <html lang="pt-PT">
 <head>
+    <!-- Define a codificação de caracteres para suportar acentuação (UTF-8) -->
     <meta charset="UTF-8">
+    <!-- Garante que a página é responsiva e se adapta à largura do dispositivo -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- Título que aparece no separador do navegador -->
     <title>IHM de Controle - Automação Industrial</title>
-    <!-- Importação da biblioteca Chart.js para o desenho do gráfico de tendências -->
+    
+    <!-- Importação da biblioteca externa Chart.js via CDN, responsável por desenhar o gráfico dinâmico -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Início do bloco de estilos (CSS) -->
     <style>
-        /* Variáveis de cores para o tema escuro (Dark Mode), semelhante a softwares industriais reais */
+        /* A pseudo-classe :root permite definir variáveis CSS globais para facilitar a mudança de tema (Dark Mode) */
         :root {
-            --bg-color: #1e1e1e;       /* Fundo principal da página */
-            --panel-bg: #2d2d30;       /* Fundo dos painéis de controlo */
-            --text-color: #d4d4d4;     /* Cor base do texto */
-            --accent: #007acc;         /* Cor de destaque (Azul) */
-            --danger: #d16969;         /* Cor para modo Manual / Alertas (Vermelho) */
-            --success: #6a9955;        /* Cor para modo Automático (Verde) */
-            --border: #3e3e42;         /* Cor dos contornos */
-            --warn: #d7ba7d;           /* Cor para avisos/erros (Amarelo) */
+            --bg-color: #1e1e1e;       /* Cor de fundo principal de toda a página (cinzento muito escuro) */
+            --panel-bg: #2d2d30;       /* Cor de fundo específica para as caixas dos painéis */
+            --text-color: #d4d4d4;     /* Cor padrão do texto (cinzento claro) para contraste com o fundo escuro */
+            --accent: #007acc;         /* Cor de destaque principal (azul clássico de interfaces industriais) */
+            --danger: #d16969;         /* Cor de perigo/alerta/manual (vermelho suave) */
+            --success: #6a9955;        /* Cor de sucesso/automático (verde suave) */
+            --border: #3e3e42;         /* Cor das linhas de borda e separação */
+            --warn: #d7ba7d;           /* Cor de aviso (amarelo/mostarda) para o erro do PID */
         }
 
-        /* Estilos gerais da página */
+        /* Formatação global do corpo da página */
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg-color); 
-            color: var(--text-color);
-            margin: 0; 
-            padding: 20px; 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* Fonte moderna e legível */
+            background-color: var(--bg-color); /* Aplica a variável global de fundo */
+            color: var(--text-color);          /* Aplica a variável global de texto */
+            margin: 0;                         /* Remove margens padrão do navegador */
+            padding: 20px;                     /* Adiciona espaço interno ao redor de todo o conteúdo */
+            display: flex;                     /* Utiliza Flexbox para o layout principal */
+            flex-direction: column;            /* Empilha os elementos verticalmente (Título -> Painéis) */
+            align-items: center;               /* Centraliza o conteúdo horizontalmente no ecrã */
         }
 
-        /* Títulos */
+        /* Estilização do título principal (h1) e do subtítulo */
         h1 { color: var(--accent); text-align: center; margin-bottom: 5px; }
         .subtitle { text-align: center; font-size: 0.9em; color: #888; margin-bottom: 20px; }
         
-        /* Layout principal em grelha (grid): Painel esquerdo (controlos) e Painel direito (displays/gráfico) */
-        .dashboard { display: grid; grid-template-columns: 320px 1fr; gap: 20px; width: 100%; max-width: 1250px; }
+        /* Grelha principal (Dashboard) que divide o ecrã em duas colunas */
+        .dashboard { 
+            display: grid; 
+            grid-template-columns: 320px 1fr; /* Coluna 1 (menus): 320px fixos; Coluna 2 (gráfico): ocupa o espaço restante (1fr) */
+            gap: 20px;                        /* Espaço vazio (calha) de 20px entre as colunas */
+            width: 100%;                      /* Ocupa 100% do espaço disponível... */
+            max-width: 1250px;                /* ...até um limite máximo de 1250px de largura */
+        }
         
-        /* Estilização das caixas dos painéis */
+        /* Estilização base das caixas dos painéis esquerdo e direito */
         .panel {
             background-color: var(--panel-bg); 
             border: 1px solid var(--border);
-            border-radius: 8px; 
-            padding: 15px; 
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            border-radius: 8px;               /* Cantos arredondados suaves */
+            padding: 15px;                    /* Margem interna do painel */
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3); /* Sombra subtil para dar efeito de profundidade 3D */
         }
-        .panel h2 { font-size: 1.1em; margin-top: 0; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
         
-        /* Estilização dos grupos de inputs (etiqueta + campo de texto) */
-        .form-group { margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
-        .form-group label { font-size: 0.85em; }
+        /* Estilização dos títulos (h2) dentro dos painéis */
+        .panel h2 { 
+            font-size: 1.1em; 
+            margin-top: 0; 
+            border-bottom: 1px solid var(--border); /* Linha divisória debaixo do título */
+            padding-bottom: 10px; 
+        }
+        
+        /* Classe utilitária para agrupar as etiquetas (labels) e as caixas de texto (inputs) lado a lado */
+        .form-group { 
+            margin-bottom: 10px; 
+            display: flex; 
+            justify-content: space-between; /* Empurra a etiqueta para a esquerda e o input para a direita */
+            align-items: center;            /* Alinha-os verticalmente ao centro */
+        }
+        .form-group label { font-size: 0.85em; } /* Letra ligeiramente mais pequena para as etiquetas */
+        
+        /* Estilização visual das caixas de input numérico e menus pendentes (select) */
         .form-group input, .form-group select {
-            width: 85px; background-color: #1e1e1e; color: #fff;
-            border: 1px solid var(--border); padding: 5px; border-radius: 4px;
+            width: 85px; 
+            background-color: #1e1e1e; 
+            color: #fff;
+            border: 1px solid var(--border); 
+            padding: 5px; 
+            border-radius: 4px;
         }
         
-        /* Caixas seccionais pontilhadas para agrupar parâmetros */
+        /* Caixas seccionais pontilhadas (usadas para agrupar os parâmetros da planta e do PID) */
         .section-box {
-            border: 1px dashed var(--border); padding: 10px; border-radius: 6px; margin-bottom: 15px; background-color: #252526;
+            border: 1px dashed var(--border); /* Borda tracejada/pontilhada */
+            padding: 10px; 
+            border-radius: 6px; 
+            margin-bottom: 15px; 
+            background-color: #252526;        /* Fundo ligeiramente diferente para destacar a secção */
         }
         
-        /* Botão de alternância Auto/Manual */
+        /* Estilos base do botão principal de alternância (Automático/Manual) */
         .btn-toggle {
-            width: 100%; padding: 10px; margin-top: 5px; border: none;
-            border-radius: 4px; font-weight: bold; cursor: pointer; transition: background 0.3s;
+            width: 100%; 
+            padding: 10px; 
+            margin-top: 5px; 
+            border: none;
+            border-radius: 4px; 
+            font-weight: bold; 
+            cursor: pointer;                  /* Muda o cursor do rato para uma "mãozinhal" */
+            transition: background 0.3s;      /* Suaviza a transição de cor quando muda de estado */
         }
+        /* Classes dinâmicas injetadas pelo Javascript no botão dependendo do modo */
         .btn-auto { background-color: var(--success); color: white; }
         .btn-manual { background-color: var(--danger); color: white; }
         
-        /* Estilos dos Displays digitais no topo do gráfico */
+        /* Layout flexível para a barra superior do gráfico onde estão os mostradores digitais */
         .displays { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 15px; }
+        
+        /* Estilização individual de cada mostrador digital (estilo LCD/Terminal) */
         .display-box {
-            flex: 1; background-color: #000; border: 2px solid var(--border);
-            border-radius: 6px; padding: 10px; text-align: center; transition: all 0.3s;
+            flex: 1;                          /* Todos os mostradores ocupam larguras iguais */
+            background-color: #000;           /* Fundo preto intenso */
+            border: 2px solid var(--border);
+            border-radius: 6px; 
+            padding: 10px; 
+            text-align: center; 
+            transition: all 0.3s;             /* Permite transições suaves (ex: ao ativar o alarme de saturação) */
         }
         .display-box .label { font-size: 0.8em; color: #888; transition: color 0.3s; }
-        .display-box .value { font-size: 1.5em; font-family: 'Courier New', Courier, monospace; color: #0f0; }
+        .display-box .value { 
+            font-size: 1.5em; 
+            font-family: 'Courier New', Courier, monospace; /* Fonte monoespaçada (tipo código) */
+            color: #0f0;                      /* Verde por defeito */
+        }
         
-        /* Cores específicas para os valores nos displays */
-        .val-sp { color: #00ffff !important; }   
-        .val-mv { color: #ff00ff !important; }   
-        .val-err { color: var(--warn) !important; } 
+        /* Substituição (override) de cores específicas para certos valores usando a tag !important */
+        .val-sp { color: #00ffff !important; }      /* Ciano para Setpoint */
+        .val-mv { color: #ff00ff !important; }      /* Magenta para a Variável Manipulada (Saída) */
+        .val-err { color: var(--warn) !important; } /* Amarelo para o Erro */
 
-        /* ANIMAÇÃO DE ALERTA DE SATURAÇÃO DA MV */
+        /* DEFENIÇÃO DA ANIMAÇÃO KEYFRAME PARA O ALARME DE SATURAÇÃO (WINDUP) */
         @keyframes piscar-vermelho {
             0% { background-color: #000; border-color: var(--border); box-shadow: none; }
+            /* No meio do tempo, atinge o pico da cor vermelha e acende um brilho externo (box-shadow) */
             50% { background-color: #4a0000; border-color: #ff3333; box-shadow: 0 0 15px rgba(255, 0, 0, 0.6); }
             100% { background-color: #000; border-color: var(--border); box-shadow: none; }
         }
+        
+        /* Classe aplicada via JS quando o controlador pede > 100% ou < 0% */
         .saturado-box {
-            animation: piscar-vermelho 1.2s infinite; /* Faz a caixa piscar */
+            animation: piscar-vermelho 1.2s infinite; /* Executa o Keyframe acima num ciclo infinito a cada 1.2s */
         }
-        .saturado-text {
-            color: #ff5555 !important;
-            font-weight: bold;
-        }
+        /* Altera a cor do texto do mostrador que está a piscar */
+        .saturado-text { color: #ff5555 !important; font-weight: bold; }
 
+        /* Estiliza o elemento Canvas onde o gráfico será renderizado */
         canvas { background-color: #1e1e1e; border-radius: 4px; }
+        
+        /* Classe utilitária para "desativar" visualmente blocos (aplica transparência e impede cliques) */
         .disabled-box { opacity: 0.5; pointer-events: none; }
     </style>
 </head>
 <body>
 
+    <!-- Cabeçalho visível da página -->
     <h1>IHM - Controlador Digital Incremental</h1>
     <div class="subtitle">Sintonia PID e Simulação de Processo</div>
 
+    <!-- Contenedor principal Grid que alberga toda a interface -->
     <div class="dashboard">
-        <!-- PAINEL ESQUERDO: CONTROLOS E PARÂMETROS -->
+        
+        <!-- ========================================== -->
+        <!-- PAINEL ESQUERDO: CONFIGURAÇÕES E PARÂMETROS -->
+        <!-- ========================================== -->
         <div class="panel">
+            
+            <!-- SECÇÃO 1: Planta Física Simulada -->
             <h2>Parâmetros do Processo (Planta)</h2>
             <div class="section-box" id="box-planta">
+                <!-- O Ganho define o quão agressivamente o sistema responde à válvula (MV) -->
                 <div class="form-group"><label>Ganho (K):</label><input type="number" id="inp-k-planta" value="0.5" step="0.1"></div>
+                <!-- A Constante de Tempo simula a inércia; valores mais próximos de 1 deixam o sistema muito lento a reagir -->
                 <div class="form-group"><label>Const. Tempo (a):</label><input type="number" id="inp-tau-planta" value="0.95" step="0.01"></div>
+                <!-- Bias é a base térmica/nível; é para onde a planta tende se a válvula fechar totalmente (0%) -->
                 <div class="form-group"><label>Bias (Base):</label><input type="number" id="inp-bias-planta" value="25" step="1"></div>
             </div>
 
+            <!-- SECÇÃO 2: Sintonia do Cérebro do Controlador (PID) -->
             <h2>Parâmetros do Controlador</h2>
-            
             <div class="form-group">
                 <label>Modo de Sintonia:</label>
+                <!-- O utilizador pode escolher fornecer Kp/Ti/Td ou as equações diretas de z-transform a0/a1/a2 -->
                 <select id="inp-modo-sintonia">
                     <option value="pid">Clássico (Kp, Ti, Td)</option>
                     <option value="coeficientes">Equação (a0, a1, a2)</option>
                 </select>
             </div>
 
+            <!-- Entradas de valores Clássicos ISA (Ativo por defeito) -->
             <div class="section-box" id="box-pid">
                 <div class="form-group"><label>Kp:</label><input type="number" id="inp-kp" value="1.5" step="0.1"></div>
                 <div class="form-group"><label>Ti (s):</label><input type="number" id="inp-ti" value="15" step="1"></div>
                 <div class="form-group"><label>Td (s):</label><input type="number" id="inp-td" value="2" step="0.5"></div>
+                <!-- Ts (Tempo de scan). Está bloqueado (disabled) a 1 segundo porque o ciclo real JS roda a 1 segundo -->
                 <div class="form-group"><label>Ts (s):</label><input type="number" id="inp-ts" value="1" step="0.1" disabled></div>
             </div>
 
+            <!-- Entradas dos coeficientes. Só fica ativo se o menu correspondente for alterado -->
             <div class="section-box disabled-box" id="box-coef">
                 <div class="form-group"><label>a0:</label><input type="number" id="inp-a0" value="0.00" step="0.01"></div>
                 <div class="form-group"><label>a1:</label><input type="number" id="inp-a1" value="0.00" step="0.01"></div>
                 <div class="form-group"><label>a2:</label><input type="number" id="inp-a2" value="0.00" step="0.01"></div>
             </div>
             
+            <!-- SECÇÃO 3: Operação (Painel de Controlo do Operador) -->
             <h2>Ação / Transferência A/M</h2>
             <div class="form-group">
                 <label>Ação:</label>
+                <!-- Reversa: Se a temperatura cai, abre mais a válvula de calor. Direta: Se a temperatura cai, fecha a válvula de arrefecimento -->
                 <select id="inp-acao">
                     <option value="reversa">Reversa (Aquecer)</option>
                     <option value="direta">Direta (Resfriar)</option>
                 </select>
             </div>
 
+            <!-- Botão essencial para comutar o loop de fechado (Auto) para aberto (Manual) -->
             <button id="btn-am" class="btn-toggle btn-auto">MODO AUTOMÁTICO</button>
+            
+            <!-- Campo do Setpoint. Bloqueado quando em modo manual (para seguir a PV ativamente) -->
             <div class="form-group" style="margin-top: 15px;"><label>Setpoint (SP):</label><input type="number" id="inp-sp" value="50" step="1"></div>
+            <!-- Campo Manual MV. Apenas libertado para digitação quando o controlador está em Manual -->
             <div class="form-group"><label>MV Manual (%):</label><input type="number" id="inp-mv-man" value="0" step="1" disabled></div>
         </div>
 
-        <!-- PAINEL DIREITO: DISPLAYS E GRÁFICOS -->
+        <!-- ========================================== -->
+        <!-- PAINEL DIREITO: VISUALIZAÇÃO GRÁFICA (SCADA) -->
+        <!-- ========================================== -->
         <div class="panel">
+            
+            <!-- DISPLAYS DIGITAIS -->
             <div class="displays">
                 <div class="display-box"><div class="label">PV (Processo)</div><div class="value" id="disp-pv">0.00</div></div>
                 <div class="display-box"><div class="label">SP (Setpoint)</div><div class="value val-sp" id="disp-sp">50.00</div></div>
                 <div class="display-box"><div class="label">Erro (SP - PV)</div><div class="value val-err" id="disp-erro">0.00</div></div>
-                <!-- ID no contentor para facilitar a aplicação do efeito de alerta CSS -->
+                <!-- A caixa da MV (Variável Manipulada) possui IDs explícitos (box-disp-mv, label-disp-mv) para facilitar a localização pelo Javascript aquando da aplicação do efeito de saturação/alerta CSS. -->
                 <div class="display-box" id="box-disp-mv"><div class="label" id="label-disp-mv">MV (Manipulada)</div><div class="value val-mv" id="disp-mv">0.00 %</div></div>
             </div>
+            
+            <!-- A TELA DO GRÁFICO (CANVAS) -->
+            <!-- Renderizado via hardware. A biblioteca Chart.js "pinta" os traços de tendência neste retângulo -->
             <canvas id="trendChart" width="800" height="400"></canvas>
         </div>
     </div>
 
-    <!-- CÓDIGO JAVASCRIPT -->
+    <!-- ========================================== -->
+    <!-- MOTOR LÓGICO: JAVASCRIPT                 -->
+    <!-- ========================================== -->
     <script>
+        // DOMContentLoaded: Aguarda que todo o HTML/CSS seja lido pelo navegador antes de começar a procurar IDs de elementos.
+        // Garante que o Javascript não falhe a tentar ler uma caixa de texto que ainda não existe no ecrã.
         document.addEventListener('DOMContentLoaded', () => {
             
+            /**
+             * Função de Validação e Limpeza: getVal
+             * Em Portugal e no Brasil, os teclados usam vírgula "," como separador decimal.
+             * O Javascript (e a matemática universal na web) exige o ponto ".".
+             * Esta função garante que qualquer vírgula seja substituída por ponto para evitar erros (NaN).
+             * @param {string} id - A identificação (ID) da caixa de texto (input) no HTML.
+             * @param {number} def - O valor de socorro (default) devolvido caso a caixa esteja vazia ou inválida.
+             */
             function getVal(id, def = 0) {
                 const el = document.getElementById(id);
-                if (!el) return def;
-                let val = String(el.value).replace(',', '.'); 
-                let num = parseFloat(val);
-                return isNaN(num) ? def : num; 
+                if (!el) return def;                                 // Elemento não encontrado? Devolve o valor padrão.
+                let val = String(el.value).replace(',', '.');        // Substitui a vírgula para respeitar a sintaxe US.
+                let num = parseFloat(val);                           // Converte a String para Número de Ponto Flutuante (Decimal).
+                return isNaN(num) ? def : num;                       // É "Not a Number"? Devolve padrão. Senão, devolve o número.
             }
 
+            /**
+             * CLASSE CENTRAL DO CÉREBRO: ControladorDigitalPID
+             * Esta classe não conhece o HTML nem o ecrã, é pura matemática industrial.
+             * Implementa a equação do PID na sua "Forma de Velocidade" (Algoritmo Incremental).
+             * Ao contrário da forma Posicional que calcula `MV = ...`, o Incremental calcula `Delta MV = ...`.
+             */
             class ControladorDigitalPID {
+                
+                // Construtor: Inicializa a memória da máquina de estados do PID
                 constructor(outMin = 0, outMax = 100) {
-                    this.outMin = outMin;   
-                    this.outMax = outMax;   
-                    this.e_k1 = 0;          
-                    this.pv_k1 = 0;         
-                    this.pv_k2 = 0;         
-                    this.u_k1 = 0;          
+                    this.outMin = outMin;   // Saturação inferior (0% válvula totalmente fechada)
+                    this.outMax = outMax;   // Saturação superior (100% válvula totalmente aberta)
+                    
+                    // Memória de iterações (amostras) passadas: Necessárias para o termo Integral e Derivativo
+                    this.e_k1 = 0;          // e(k-1): Erro da medição passada.
+                    this.pv_k1 = 0;         // pv(k-1): Variável de Processo da medição passada.
+                    this.pv_k2 = 0;         // pv(k-2): Variável de Processo de há dois ciclos atrás.
+                    this.u_k1 = 0;          // u(k-1): A última saída (MV) enviada para a válvula.
                 }
 
+                /**
+                 * Método calcular: Corre a cada 1 segundo para resolver o algoritmo de controlo.
+                 * @param {number} sp - Setpoint atual.
+                 * @param {number} pv - Process Variable (Leitura do Sensor).
+                 * @param {number} a0, a1, a2 - Coeficientes já calculados.
+                 * @param {number} dir - Direção (1 para reversa, -1 para direta).
+                 * @param {boolean} isAuto - Informa se o algoritmo está ativado ou desativado.
+                 * @param {number} manualMv - Entrada humana caso esteja desativado.
+                 * @param {boolean} spTrackingAtivo - Ativa o seguimento do SP para a PV.
+                 */
                 calcular(sp, pv, a0, a1, a2, dir, isAuto, manualMv, spTrackingAtivo = true) {
-                    let erroReal = sp - pv;       
-                    let e_k = dir * erroReal;     
+                    
+                    let erroReal = sp - pv;       // Erro matemático puro visual (Setpoint menos Medição).
+                    let e_k = dir * erroReal;     // Erro algébrico usado no PID: Invertido se a ação for de arrefecimento (Direta).
 
+                    // =====================================
+                    // COMPORTAMENTO QUANDO ESTÁ EM MODO MANUAL
+                    // =====================================
                     if (!isAuto) {
+                        
+                        // "Setpoint Tracking" (Seguimento passivo do Ponto de Consigna)
+                        // É essencial na indústria: enquanto o operador conduz manualmente, forçamos o SP a copiar o sensor.
+                        // Assim, quando carregar no botão "Auto", o Erro (SP-PV) arranca em zero.
                         if (spTrackingAtivo) sp = pv; 
+                        
+                        // Apenas aceita valores de entrada manual que respeitem a válvula (0 a 100%)
                         let u_manual = Math.max(this.outMin, Math.min(this.outMax, manualMv));
                         
+                        // "BUMPLESS TRANSFER" (Transferência sem solavancos)
+                        // A chave do PID incremental: ao atualizar a memória de estado com as medições atuais
+                        // durante o modo manual, impedimos que o termo Integral acumule disparidades ("Windup") silenciosamente.
                         this.u_k1 = u_manual; 
-                        this.e_k1 = dir * (sp - pv);
+                        this.e_k1 = dir * (sp - pv); // Se o SP Tracking estiver ativo, isto será 0.
                         this.pv_k1 = pv;
                         this.pv_k2 = pv;
                         
-                        // Retorna também a flag de saturação para o modo manual
+                        // Deteta se o utilizador tentou digitar mais de 100% ou menos de 0% para acionar o alerta (vermelho).
                         let manualSaturado = (u_manual <= this.outMin || u_manual >= this.outMax);
+                        
+                        // Retorna Imediatamente: Não calcula a matemática PI+D pois o cérebro está adormecido.
                         return { mv: u_manual, novoSp: sp, erro: erroReal, saturado: manualSaturado }; 
                     }
                     
+                    // =====================================
+                    // COMPORTAMENTO QUANDO ESTÁ EM MODO AUTOMÁTICO
+                    // =====================================
+                    
+                    // TRATAMENTO DO DERIVATIVE KICK (Chuto Derivativo):
+                    // Em vez da Derivada atuar sobre a variação do Erro, atua diretamente sobre a variação da medição (PV).
+                    // Porquê? Se o operador subitamente alterar o SP de 50 para 60, a derivada sobre o erro explodiria (um salto para o infinito), 
+                    // causando um solavanco brutal e destrutivo na válvula (Derivative Kick). 
+                    // Usar a PV absorve esse salto garantindo um comportamento de máquina mais dócil.
                     let a0_PI = a0 - a2;
                     let a1_PI = a1 + 2 * a2;
 
+                    // Aplica as parcelas P (Proporcional) e I (Integral)
                     let deltaPI = (a0_PI * e_k) + (a1_PI * this.e_k1);
+                    
+                    // Aplica a parcela D (Derivativa) baseada no movimento das 3 últimas leituras da PV.
+                    // O `-dir` garante a correção do sinal de acordo com a ação.
                     let deltaD = -dir * a2 * (pv - 2 * this.pv_k1 + this.pv_k2);
 
+                    // Soma os termos para obtermos o 'Delta U' (A Velocidade ou Variação exigida para a saída da válvula)
                     let deltaU = deltaPI + deltaD;   
+                    
+                    // Saída Atual = Saída Passada + Variação Calculada
                     let u_k = this.u_k1 + deltaU;    
 
-                    // Deteção e aplicação do Anti-Reset Windup (Saturação da Saída)
+                    // =====================================
+                    // ANTI-RESET WINDUP E AVALIAÇÃO DE ALARME
+                    // =====================================
                     let isSaturado = false;
+                    
+                    // Se o algoritmo pediu >100% ou <0%, definimos a booleana como verdadeira para a Interface acender o ecrã.
                     if (u_k <= this.outMin || u_k >= this.outMax) {
-                        isSaturado = true; // A saída excedeu os limites
+                        isSaturado = true;
                     }
 
-                    // Se o controlador pedir 110%, corta para 100%. Se pedir -10%, corta para 0%.
+                    // Força um teto matemático (Clamp) na saída: 
+                    // Math.min protege contra números superiores a 100.
+                    // Math.max protege contra números inferiores a 0.
+                    // Previne o temido "Reset Windup" (Acumulação do Erro Integral além dos limites físicos de atuação).
                     u_k = Math.max(this.outMin, Math.min(this.outMax, u_k));
 
-                    this.e_k1 = e_k;
-                    this.pv_k2 = this.pv_k1;
-                    this.pv_k1 = pv;
-                    this.u_k1 = u_k;
+                    // DESLOCAMENTO DA MEMÓRIA CIRCULAR DE ESTADOS (Shift)
+                    this.e_k1 = e_k;           // Erro atual passa a ser o erro antigo
+                    this.pv_k2 = this.pv_k1;   // PV antiga de -1 recua para -2
+                    this.pv_k1 = pv;           // PV atual torna-se na PV antiga -1
+                    this.u_k1 = u_k;           // Saída final guardada para a próxima iteração
 
-                    // A função devolve agora a propriedade "saturado" para acionar o alerta
+                    // Devolve o dicionário de resultados
                     return { mv: u_k, novoSp: sp, erro: erroReal, saturado: isSaturado };
                 }
             }
             
-            let isAuto = true;       
-            let pv_atual = 25.0;     
-            const Ts = 1;            
+            // --- Variáveis de Estado Global do Ecrã ---
+            let isAuto = true;       // Arranca com controlo ativado
+            let pv_atual = 25.0;     // O sensor lê inicialmente 25 (Ex: Temperatura Ambiente)
+            const Ts = 1;            // Fixo: Tempo de Amostragem do nosso laço lógico (1 ciclo = 1 segundo).
             
+            // Instancia a classe que acabámos de definir, configurando limites [0 a 100]
             const pid = new ControladorDigitalPID(0, 100);
+            
+            // Pré-condiciona a memória do PID à temperatura ambiente de arranque para evitar solavancos (bumpless start)
             pid.pv_k1 = pv_atual;
             pid.pv_k2 = pv_atual;
 
-            let trendChart = null;
+            // =====================================
+            // INICIALIZAÇÃO E BLINDAGEM DA BIBLIOTECA CHART.JS
+            // =====================================
+            let trendChart = null; // Instância global do gráfico
+            
+            // O bloco try/catch atua como rede de segurança. 
+            // Como a biblioteca Chart.js está na cloud (CDN), se a internet falhar ou a rede corporativa bloquear o link, 
+            // a declaração "new Chart" causaria uma exceção fatal, bloqueando o controlo PID (o motor pararia).
             try {
                 if (typeof Chart !== 'undefined') {
+                    // Seleciona a tela HTML
                     const ctx = document.getElementById('trendChart').getContext('2d');
+                    
+                    // Constrói o objeto Chart
                     trendChart = new Chart(ctx, {
-                        type: 'line',
+                        type: 'line', // Tipo do gráfico
                         data: {
+                            // Cria um eixo X vazio com 60 posições (60 amostras, 1 min de janela temporal)
                             labels: Array(60).fill(''), 
                             datasets: [
+                                // Pena/Linha da PV (Verde vibrante). Inicialmente cheia de '25'. Sem pontos visíveis nos nós (pointRadius: 0).
                                 { label: 'PV', borderColor: '#00ff00', data: Array(60).fill(25), pointRadius: 0, tension: 0.1 },
+                                // Pena/Linha do SP (Ciano). Linha pontilhada estilizada via borderDash.
                                 { label: 'SP', borderColor: '#00ffff', data: Array(60).fill(50), pointRadius: 0, borderDash: [5, 5] },
+                                // Pena/Linha da MV (Magenta). Usa um eixo Y independente (lado direito).
                                 { label: 'MV (%)', borderColor: '#ff00ff', data: Array(60).fill(0), pointRadius: 0, yAxisID: 'y1' }
                             ]
                         },
                         options: {
-                            responsive: true, animation: false,
+                            responsive: true, 
+                            animation: false, // Essencial! Desliga as animações nativas para evitar a lentidão contínua de renderização num gráfico industrial em tempo-real.
                             scales: {
+                                // Eixo Esquerdo (Variáveis de Temperatura/Processo)
                                 y: { min: 0, max: 100, title: { display: true, text: 'Variáveis (PV / SP)', color: '#fff' }, grid: { color: '#333' } },
+                                // Eixo Direito (Percentagem da Válvula) - A propriedade "position: right" prende este eixo ao lado direito do canvas
                                 y1: { min: 0, max: 100, position: 'right', title: { display: true, text: 'MV (%)', color: '#fff' }, grid: { drawOnChartArea: false } },
                                 x: { grid: { color: '#333' } }
                             },
-                            plugins: { legend: { labels: { color: '#fff' } } }
+                            plugins: { legend: { labels: { color: '#fff' } } } // Torna a cor das legendas branca
                         }
                     });
                 }
             } catch(e) {
+                // "Graceful Degradation": Em caso de falha de carregamento, loga um aviso, mas o motor (Math, PID) e IHM continuam em pé.
                 console.warn("Chart.js não carregado.", e);
             }
 
+            // Seleção de referências aos botões e caixas do DOM
             const modoSintonia = document.getElementById('inp-modo-sintonia');
             const boxPid = document.getElementById('box-pid');
             const boxCoef = document.getElementById('box-coef');
@@ -278,6 +457,9 @@
             const inpA1 = document.getElementById('inp-a1');
             const inpA2 = document.getElementById('inp-a2');
 
+            // Ouvinte de Evento: Alterna qual caixa preencher.
+            // Quando selecionado 'pid', ofusca a caixa a0,a1,a2. 
+            // Quando selecionado 'coeficientes', ofusca a caixa Kp, Ti, Td.
             modoSintonia.addEventListener('change', (e) => {
                 if(e.target.value === 'pid') {
                     boxPid.classList.remove('disabled-box');
@@ -288,107 +470,163 @@
                 }
             });
 
+            // =====================================
+            // MOTOR PRINCIPAL DE TEMPO REAL (SCAN LOOP)
+            // =====================================
+            // A função corre de forma perpétua a cada (Ts * 1000) milissegundos -> 1 segundo.
             setInterval(() => {
                 let a0, a1, a2;
                 
+                // --- 1. AVALIAÇÃO DOS PARÂMETROS DO CONTROLADOR ---
                 if (modoSintonia.value === 'pid') {
+                    // Busca Kp, Ti e Td através da nossa função segura. Valores base de contingência se algo falhar.
                     const Kp = getVal('inp-kp', 1.5);
                     const Ti = getVal('inp-ti', 15);
                     const Td = getVal('inp-td', 2);
                     
+                    // Transforma parâmetros Clássicos (Tempo Contínuo) para Coeficientes Diretos Z-Transform (Tempo Discreto).
+                    // Esta é a aproximação de Tustin/Retângulo Híbrida para Digitalização Analógica->Digital do PID.
                     a0 = Kp * (1 + (Ts / Ti) + (Td / Ts));
                     a1 = -Kp * (1 + 2 * (Td / Ts));
                     a2 = Kp * (Td / Ts);
 
-                    if(inpA0) inpA0.value = a0.toFixed(4);
+                    // Puxa a atualização dos valores reais para dentro das caixas inativas de a0,a1,a2
+                    if(inpA0) inpA0.value = a0.toFixed(4); // toFixed(4) corta tudo o que for além de 4 casas decimais.
                     if(inpA1) inpA1.value = a1.toFixed(4);
                     if(inpA2) inpA2.value = a2.toFixed(4);
                 } else {
+                    // Lê o valor introduzido pelo operador em bruto se a escolha for Modo Equação.
                     a0 = getVal('inp-a0', 0);
                     a1 = getVal('inp-a1', 0);
                     a2 = getVal('inp-a2', 0);
                 }
 
+                // Verifica qual a lógica da Ação a aplicar. Se 'Direta', atribui um multiplicador de -1
                 let acaoEl = document.getElementById('inp-acao');
                 let dir = (acaoEl && acaoEl.value === 'direta') ? -1 : 1;
                 
+                // Lê ordens de controlo. 
                 let sp_input = getVal('inp-sp', 50);
                 const mv_man_input = getVal('inp-mv-man', 0);
 
-                // Cálculo do PID
+                // --- 2. EXECUTA O ALGORITMO PID ---
+                // Envia as leituras físicas e os parâmetros à classe do Controlador, recebendo como retorno um objeto de respostas (MV manipulada, estado do rastreamento, erro).
                 const resultado = pid.calcular(sp_input, pv_atual, a0, a1, a2, dir, isAuto, mv_man_input, true);
-                const mv_aplicada = resultado.mv; 
+                const mv_aplicada = resultado.mv; // A instrução pura, limitada a 0..100 que sai para o mundo físico
 
+                // Atualiza a visualização do Setpoint (A caixa de digitação) no painel esquerdo caso estejamos em Modo Manual.
+                // Ao forçar spEl.value a receber `resultado.novoSp`, o número persegue ativamente os saltos da temperatura ambiente, cumprindo graficamente a lógica Bump-less.
                 let spEl = document.getElementById('inp-sp');
                 if (!isAuto && sp_input !== resultado.novoSp && spEl) {
                     spEl.value = resultado.novoSp.toFixed(1);
                 }
 
-                // Simulação da Planta
-                let k_planta = getVal('inp-k-planta', 0.5);       
-                let tau_planta = getVal('inp-tau-planta', 0.95);  
-                let bias_planta = getVal('inp-bias-planta', 25);  
+                // --- 3. EXECUTA A SIMULAÇÃO (FÍSICA DA FÁBRICA) ---
+                
+                // Leituras das características Termodinâmicas/Hidráulicas geradas pelo painel da planta.
+                let k_planta = getVal('inp-k-planta', 0.5);       // Quantidade de reação à abertura da válvula
+                let tau_planta = getVal('inp-tau-planta', 0.95);  // Massa do sistema (Térmica). A 0.95 há imensa memória/inércia. A 0.00 reagiria instantaneamente.
+                let bias_planta = getVal('inp-bias-planta', 25);  // O valor base para o qual a planta esgota (Sem energia, estabiliza a 25 graus)
+                
+                // O ruído matemático (White Noise) de +/- 0.25 unidades que dá vida à simulação e desafia as reações derivativas.
                 let perturbacao = (Math.random() - 0.5) * 0.5; 
                 
+                // A Equação de Diferenças (Filtro Passa-Baixo Exponencial). 
+                // Representa um "Atraso de Primeira Ordem" universal. 
+                // Funde 95% (tau_planta) da temperatura passada, com 5% (1-tau_planta) da força induzida pela válvula, bias e distúrbios aleatórios.
                 pv_atual = (pv_atual * tau_planta) + 
                            (bias_planta * (1 - tau_planta)) + 
                            (mv_aplicada * k_planta * (1 - tau_planta)) + 
                            perturbacao;
 
-                // Atualização dos displays no ecrã
+                // --- 4. RENDERIZAÇÃO DA IHM (DISPLAYS DIGITAIS) ---
+                // Preenche as caixas pretas LCD no topo
                 document.getElementById('disp-pv').innerText = pv_atual.toFixed(2);
                 document.getElementById('disp-sp').innerText = resultado.novoSp.toFixed(2);
                 document.getElementById('disp-erro').innerText = resultado.erro.toFixed(2);
                 document.getElementById('disp-mv').innerText = mv_aplicada.toFixed(2) + ' %';
 
-                // --- LÓGICA VISUAL DO ALERTA DE SATURAÇÃO ---
+                // --- 5. RENDERIZAÇÃO DA IHM (AVALIAÇÃO DE ALARMES / LUZ VERMELHA INTERMITENTE) ---
                 let boxDispMv = document.getElementById('box-disp-mv');
                 let labelDispMv = document.getElementById('label-disp-mv');
                 
                 if (resultado.saturado) {
-                    // Adiciona classes CSS para piscar a caixa e alterar a cor do texto
+                    // Adiciona classes ao DOM HTML que desencadeiam a animação @keyframes CSS definida acima.
                     boxDispMv.classList.add('saturado-box');
                     labelDispMv.classList.add('saturado-text');
                     labelDispMv.innerText = "MV (SATURADA!)";
                 } else {
-                    // Remove o alerta caso a MV volte à normalidade (entre 1% e 99%)
+                    // Se a perturbação passar e o PID recuperar para os 98% por exemplo, as classes removem-se e limpa o alerta visual.
                     boxDispMv.classList.remove('saturado-box');
                     labelDispMv.classList.remove('saturado-text');
                     labelDispMv.innerText = "MV (Manipulada)";
                 }
 
+                // --- 6. RENDERIZAÇÃO DA IHM (GRÁFICO DE TENDÊNCIAS / CHART) ---
                 if (trendChart) {
-                    trendChart.data.datasets[0].data.shift(); trendChart.data.datasets[0].data.push(pv_atual);
-                    trendChart.data.datasets[1].data.shift(); trendChart.data.datasets[1].data.push(resultado.novoSp);
-                    trendChart.data.datasets[2].data.shift(); trendChart.data.datasets[2].data.push(mv_aplicada);
+                    // O array de dados do Chart.js comporta-se como uma fila FIFO (First In First Out).
+                    // .shift() apaga a amostra mais antiga (posição 0, lado esquerdo da tela).
+                    trendChart.data.datasets[0].data.shift(); 
+                    // .push() injeta a amostra temporal mais recente na ponta direita do array (posição 60).
+                    trendChart.data.datasets[0].data.push(pv_atual);
+                    
+                    // Repete a dança temporal Shift-Push para os arrays do Setpoint e Manipulada (Válvula).
+                    trendChart.data.datasets[1].data.shift(); 
+                    trendChart.data.datasets[1].data.push(resultado.novoSp);
+                    trendChart.data.datasets[2].data.shift(); 
+                    trendChart.data.datasets[2].data.push(mv_aplicada);
+                    
+                    // Compele o motor gráfico a atualizar e recriar as pontes vetoriais (SVG/Canvas) no ecrã.
                     trendChart.update();
                 }
 
             }, Ts * 1000); 
 
+            // =====================================
+            // MANUSEAMENTO DO TECLADO/INTERAÇÕES DO OPERADOR (A/M SWITCH)
+            // =====================================
             const btnAM = document.getElementById('btn-am');
             const inpMvMan = document.getElementById('inp-mv-man');
             const inpSp = document.getElementById('inp-sp');
 
             if(btnAM) {
+                // Ao escutar o "Clique" no botão principal...
                 btnAM.addEventListener('click', () => {
-                    isAuto = !isAuto; 
+                    isAuto = !isAuto; // Alternância booleana (Toogle T-FlipFlop) 
                     
                     if (isAuto) {
+                        // DE MODO "MANUAL" TRANSITA PARA "AUTOMÁTICO"
+                        // 1. Muda Estilos do botão (Verde Vivo) e título (MODO AUTOMÁTICO)
                         btnAM.className = 'btn-toggle btn-auto';
                         btnAM.innerText = 'MODO AUTOMÁTICO';
+                        
+                        // 2. Trava a caixa manual para bloquear digitações erráticas.
                         if(inpMvMan) inpMvMan.disabled = true; 
+                        
+                        // 3. Liberta a caixa de Setpoint. 
                         if(inpSp) {
                             inpSp.disabled = false; 
+                            // 4. Copia subitamente a última instrução da Válvula dada manualmente e coloca-a como Setpoint
+                            // Isto implementa as mecânicas "Tie-Back" para fluxos específicos, a pedido anterior do utilizador.
                             inpSp.value = getVal('inp-mv-man', 0).toFixed(1);
                         }
                     } else {
+                        // DE MODO "AUTOMÁTICO" TRANSITA PARA "MANUAL"
+                        // 1. Muda estilo de botão (Vermelho Alerta) alertando que o cérebro humano deve controlar.
                         btnAM.className = 'btn-toggle btn-manual';
                         btnAM.innerText = 'MODO MANUAL';
+                        
+                        // 2. Destranca a caixa de entrada para a MV.
                         if(inpMvMan) {
                             inpMvMan.disabled = false; 
+                            
+                            // 3. Lê o ecrã para forçar uma transição sem choques à Válvula real.
+                            // Imagina: o automato exigia 42% no momento da transição. Se a caixa manual estivesse gravada a 0%,
+                            // a válvula fechava com solavanco. Ao forçar os 42% na caixa manual, mantemos a energia da fábrica equilibrada.
                             inpMvMan.value = parseFloat(document.getElementById('disp-mv').innerText).toFixed(1);
                         }
+                        
+                        // 4. Tranca o botão do setpoint. Como vimos no laço (Scan Loop) acima, o SP passará a forçar o "Tracking" sobre a PV.
                         if(inpSp) inpSp.disabled = true; 
                     }
                 });
