@@ -169,7 +169,6 @@
                 <div class="form-group"><label>Kp:</label><input type="number" id="inp-kp" value="1.2" step="0.1"></div>
                 <div class="form-group"><label>Ti (s):</label><input type="number" id="inp-ti" value="12" step="1"></div>
                 <div class="form-group"><label>Td (s):</label><input type="number" id="inp-td" value="0" step="0.5"></div>
-                <!-- Período de Amostragem (Ts) agora desbloqueado para configuração (Passo 2) -->
                 <div class="form-group"><label>Ts (s) [Amostragem]:</label><input type="number" id="inp-ts" value="1" step="0.1"></div>
             </div>
 
@@ -233,7 +232,7 @@
                     this.u_k1 = 0;          
                 }
 
-                calcular(sp, pv, a0, a1, a2, dir, isAuto, manualMv, spTrackingAtivo = true) {
+                calcular(sp, pv, a0, a1, a2, dir, isAuto, manualMv, spTrackingAtivo = false) {
                     let erroReal = sp - pv;       
                     let e_k = dir * erroReal;     
 
@@ -271,8 +270,8 @@
             
             let isAuto = true;       
             let pv_atual = 25.0;     
-            let bufferVM = [];       // Fila de atraso (Tempo Morto)
-            let loopInterval = null; // Variável para gerir o laço de amostragem
+            let bufferVM = Array(100).fill(0); // Pré-enchido com 0s para evitar erros nos primeiros ciclos
+            let loopInterval = null; 
             
             const pid = new ControladorDigitalPID(0, 100);
             pid.pv_k1 = pv_atual;
@@ -326,7 +325,6 @@
                 }
             });
 
-            // Função que inicia/reinicia o laço sempre que o Período de Amostragem (Ts) for modificado
             function iniciarLoop() {
                 if (loopInterval) clearInterval(loopInterval);
                 let Ts = getVal('inp-ts', 1);
@@ -336,13 +334,17 @@
                     
                     // 1. AVALIAÇÃO DO PID
                     if (modoSintonia.value === 'pid') {
-                        const Kp = getVal('inp-kp', 1.5);
-                        const Ti = getVal('inp-ti', 15);
-                        const Td = getVal('inp-td', 2);
+                        const Kp = getVal('inp-kp', 1.2);
+                        const Ti = getVal('inp-ti', 12);
+                        const Td = getVal('inp-td', 0);
                         
-                        a0 = Kp * (1 + (Ts / Ti) + (Td / Ts));
-                        a1 = -Kp * (1 + 2 * (Td / Ts));
-                        a2 = Kp * (Td / Ts);
+                        // Blindagem matemática: evita divisão por zero se Ti ou Ts forem 0.
+                        const termoI = (Ti > 0 && Ts > 0) ? (Ts / Ti) : 0;
+                        const termoD = (Ts > 0) ? (Td / Ts) : 0;
+                        
+                        a0 = Kp * (1 + termoI + termoD);
+                        a1 = -Kp * (1 + 2 * termoD);
+                        a2 = Kp * termoD;
 
                         if(inpA0) inpA0.value = a0.toFixed(4); 
                         if(inpA1) inpA1.value = a1.toFixed(4);
@@ -358,35 +360,27 @@
                     let sp_input = getVal('inp-sp', 50);
                     const mv_man_input = getVal('inp-mv-man', 0);
 
-                    // 2. CALCULA O CONTROLADOR
-                    const resultado = pid.calcular(sp_input, pv_atual, a0, a1, a2, dir, isAuto, mv_man_input, true);
+                    // 2. CALCULA O CONTROLADOR (Setpoint Tracking desligado via 'false' no final)
+                    const resultado = pid.calcular(sp_input, pv_atual, a0, a1, a2, dir, isAuto, mv_man_input, false);
                     const mv_aplicada = resultado.mv; 
-
-                    let spEl = document.getElementById('inp-sp');
-                    if (!isAuto && sp_input !== resultado.novoSp && spEl) {
-                        spEl.value = resultado.novoSp.toFixed(1);
-                    }
 
                     // 3. MODELO DE PROCESSO DISCRETO (FOPDT + Distúrbio)
                     let k_planta = getVal('inp-k-planta', 1.0);       
                     let tau_planta = getVal('inp-tau-planta', 10); 
                     let theta_planta = getVal('inp-theta-planta', 3);
                     let bias_planta = getVal('inp-bias-planta', 25);  
-                    let ld_atual = getVal('inp-ld', 0); // Distúrbio de Carga (Passo 5)
+                    let ld_atual = getVal('inp-ld', 0); 
 
-                    // Equações Discretas do FOPDT (Passo 4)
                     let alpha = Math.exp(-Ts / (tau_planta > 0 ? tau_planta : 0.0001));
                     let beta = k_planta * (1 - alpha);
-                    let d = Math.max(0, Math.round(theta_planta / Ts)); // Atraso em amostras
+                    let d = Math.max(0, Math.round(theta_planta / Ts)); 
                     
-                    // Lógica da fila (Buffer) para o Tempo Morto
                     bufferVM.push(mv_aplicada);
                     while (bufferVM.length > d + 1) bufferVM.shift();
                     let mv_atrasada = bufferVM[0];
 
                     let perturbacao = (Math.random() - 0.5) * 0.2; 
                     
-                    // Equação a Diferenças
                     pv_atual = (pv_atual * alpha) + 
                                (bias_planta * (1 - alpha)) + 
                                (mv_atrasada * beta) + 
@@ -424,35 +418,31 @@
                         trendChart.data.datasets[2].data.shift(); 
                         trendChart.data.datasets[2].data.push(mv_aplicada);
                         
-                        trendChart.update();
+                        trendChart.update('none'); // O 'none' desativa animações internas residuais melhorando a performance
                     }
 
                 }, Ts * 1000); 
             }
 
-            // Ativa o laço de imediato e relança se o operador mudar a amostragem
             iniciarLoop();
             document.getElementById('inp-ts').addEventListener('change', iniciarLoop);
 
             // MANUSEAMENTO A/M (Manual / Auto)
             const btnAM = document.getElementById('btn-am');
             const inpMvMan = document.getElementById('inp-mv-man');
-            const inpSp = document.getElementById('inp-sp');
-
+            
             if(btnAM) {
                 btnAM.addEventListener('click', () => {
                     isAuto = !isAuto; 
                     
                     if (isAuto) {
+                        // Transita para AUTOMÁTICO
                         btnAM.className = 'btn-toggle btn-auto';
                         btnAM.innerText = 'MODO AUTOMÁTICO';
                         if(inpMvMan) inpMvMan.disabled = true; 
                         
-                        if(inpSp) {
-                            inpSp.disabled = false; 
-                            inpSp.value = getVal('inp-mv-man', 0).toFixed(1);
-                        }
                     } else {
+                        // Transita para MANUAL
                         btnAM.className = 'btn-toggle btn-manual';
                         btnAM.innerText = 'MODO MANUAL';
                         
@@ -460,8 +450,6 @@
                             inpMvMan.disabled = false; 
                             inpMvMan.value = parseFloat(document.getElementById('disp-mv').innerText).toFixed(1);
                         }
-                        
-                        if(inpSp) inpSp.disabled = true; 
                     }
                 });
             }
