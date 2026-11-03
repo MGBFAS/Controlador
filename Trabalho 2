@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IHM de Controle - FOPDT e Distúrbio</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        :root {
+            --bg-color: #1e1e1e;
+            --panel-bg: #2d2d30;
+            --text-color: #d4d4d4;
+            --accent: #007acc;
+            --danger: #d16969;
+            --success: #6a9955;
+            --border: #3e3e42;
+            --warn: #d7ba7d;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 { color: var(--accent); text-align: center; margin-bottom: 5px; }
+        .subtitle { text-align: center; font-size: 0.9em; color: #888; margin-bottom: 20px; }
+        
+        .dashboard { 
+            display: grid; 
+            grid-template-columns: 340px 1fr; 
+            gap: 20px; 
+            width: 100%; 
+            max-width: 1300px; 
+        }
+        
+        .panel {
+            background-color: var(--panel-bg); 
+            border: 1px solid var(--border);
+            border-radius: 8px; 
+            padding: 15px; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3); 
+        }
+        
+        .panel h2 { 
+            font-size: 1.1em; 
+            margin-top: 0; 
+            border-bottom: 1px solid var(--border); 
+            padding-bottom: 10px; 
+        }
+        
+        .form-group { 
+            margin-bottom: 10px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+        }
+        .form-group label { font-size: 0.85em; }
+        
+        .form-group input, .form-group select {
+            width: 85px; 
+            background-color: #1e1e1e; 
+            color: #fff;
+            border: 1px solid var(--border); 
+            padding: 5px; 
+            border-radius: 4px;
+        }
+        
+        .section-box {
+            border: 1px dashed var(--border); 
+            padding: 10px; 
+            border-radius: 6px; 
+            margin-bottom: 15px; 
+            background-color: #252526; 
+        }
+        
+        .btn-toggle {
+            width: 100%; 
+            padding: 10px; 
+            margin-top: 5px; 
+            border: none;
+            border-radius: 4px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            transition: background 0.3s; 
+        }
+        .btn-auto { background-color: var(--success); color: white; }
+        .btn-manual { background-color: var(--danger); color: white; }
+        
+        .displays { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 15px; }
+        
+        .display-box {
+            flex: 1; 
+            background-color: #000; 
+            border: 2px solid var(--border);
+            border-radius: 6px; 
+            padding: 10px; 
+            text-align: center; 
+            transition: all 0.3s; 
+        }
+        .display-box .label { font-size: 0.8em; color: #888; transition: color 0.3s; }
+        .display-box .value { 
+            font-size: 1.5em; 
+            font-family: 'Courier New', Courier, monospace; 
+            color: #0f0; 
+        }
+        
+        .val-sp { color: #00ffff !important; }  
+        .val-mv { color: #ff00ff !important; }  
+        .val-err { color: var(--warn) !important; } 
+
+        @keyframes piscar-vermelho {
+            0% { background-color: #000; border-color: var(--border); box-shadow: none; }
+            50% { background-color: #4a0000; border-color: #ff3333; box-shadow: 0 0 15px rgba(255, 0, 0, 0.6); }
+            100% { background-color: #000; border-color: var(--border); box-shadow: none; }
+        }
+        
+        .saturado-box { animation: piscar-vermelho 1.2s infinite; }
+        .saturado-text { color: #ff5555 !important; font-weight: bold; }
+
+        canvas { background-color: #1e1e1e; border-radius: 4px; width: 100%; }
+        .disabled-box { opacity: 0.5; pointer-events: none; }
+        
+        .info-text { font-size: 0.75em; color: #888; margin-top: 5px; text-align: center;}
+    </style>
+</head>
+<body>
+
+    <h1>IHM - Controlador FOPDT e Distúrbio</h1>
+    <div class="subtitle">Identificação: VP (Variável de Processo), VM (Variável Manipulada) e LD (Distúrbio de Carga)</div>
+
+    <div class="dashboard">
+        
+        <!-- PAINEL ESQUERDO -->
+        <div class="panel">
+            
+            <!-- SECÇÃO 1: Planta Física FOPDT e LD -->
+            <h2>Parâmetros do Processo (Planta)</h2>
+            <div class="section-box" id="box-planta">
+                <div class="form-group"><label>Ganho (K):</label><input type="number" id="inp-k-planta" value="1.0" step="0.1"></div>
+                <div class="form-group"><label>Const. Tempo (&tau; s):</label><input type="number" id="inp-tau-planta" value="10" step="1"></div>
+                <div class="form-group"><label>Tempo Morto (&theta; s):</label><input type="number" id="inp-theta-planta" value="3" step="1"></div>
+                <div class="form-group"><label>Bias (Base VP):</label><input type="number" id="inp-bias-planta" value="25" step="1"></div>
+                
+                <hr style="border-color: var(--border);">
+                <!-- Distúrbio de Carga (LD) -->
+                <div class="form-group"><label>Distúrbio de Carga (LD):</label><input type="number" id="inp-ld" value="0" step="1"></div>
+                <div class="info-text">Modelo Discreto: VP[k] = &alpha;·VP[k-1] + &beta;·VM[k-1-d] + LD</div>
+            </div>
+
+            <!-- SECÇÃO 2: Sintonia do PID -->
+            <h2>Parâmetros do Controlador</h2>
+            <div class="form-group">
+                <label>Modo de Sintonia:</label>
+                <select id="inp-modo-sintonia">
+                    <option value="pid">Clássico (Kp, Ti, Td)</option>
+                    <option value="coeficientes">Equação (a0, a1, a2)</option>
+                </select>
+            </div>
+
+            <div class="section-box" id="box-pid">
+                <div class="form-group"><label>Kp:</label><input type="number" id="inp-kp" value="1.2" step="0.1"></div>
+                <div class="form-group"><label>Ti (s):</label><input type="number" id="inp-ti" value="12" step="1"></div>
+                <div class="form-group"><label>Td (s):</label><input type="number" id="inp-td" value="0" step="0.5"></div>
+                <!-- Período de Amostragem (Ts) agora desbloqueado para configuração (Passo 2) -->
+                <div class="form-group"><label>Ts (s) [Amostragem]:</label><input type="number" id="inp-ts" value="1" step="0.1"></div>
+            </div>
+
+            <div class="section-box disabled-box" id="box-coef">
+                <div class="form-group"><label>a0:</label><input type="number" id="inp-a0" value="0.00" step="0.01"></div>
+                <div class="form-group"><label>a1:</label><input type="number" id="inp-a1" value="0.00" step="0.01"></div>
+                <div class="form-group"><label>a2:</label><input type="number" id="inp-a2" value="0.00" step="0.01"></div>
+            </div>
+            
+            <!-- SECÇÃO 3: Operação -->
+            <h2>Ação / Transferência A/M</h2>
+            <div class="form-group">
+                <label>Ação:</label>
+                <select id="inp-acao">
+                    <option value="reversa">Reversa (Aquecer)</option>
+                    <option value="direta">Direta (Resfriar)</option>
+                </select>
+            </div>
+
+            <!-- Botão de Comutação -->
+            <button id="btn-am" class="btn-toggle btn-auto">MODO AUTOMÁTICO</button>
+            
+            <div class="form-group" style="margin-top: 15px;"><label>Setpoint (SP):</label><input type="number" id="inp-sp" value="50" step="1"></div>
+            <div class="form-group"><label>VM Manual (%):</label><input type="number" id="inp-mv-man" value="0" step="1" disabled></div>
+        </div>
+
+        <!-- PAINEL DIREITO -->
+        <div class="panel">
+            
+            <!-- DISPLAYS DIGITAIS -->
+            <div class="displays">
+                <div class="display-box"><div class="label">VP (Processo)</div><div class="value" id="disp-pv">0.00</div></div>
+                <div class="display-box"><div class="label">SP (Setpoint)</div><div class="value val-sp" id="disp-sp">50.00</div></div>
+                <div class="display-box"><div class="label">LD (Distúrbio)</div><div class="value val-err" id="disp-ld">0.00</div></div>
+                <div class="display-box" id="box-disp-mv"><div class="label" id="label-disp-mv">VM (Manipulada)</div><div class="value val-mv" id="disp-mv">0.00 %</div></div>
+            </div>
+            
+            <canvas id="trendChart" width="800" height="400"></canvas>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            
+            function getVal(id, def = 0) {
+                const el = document.getElementById(id);
+                if (!el) return def;                                 
+                let val = String(el.value).replace(',', '.');        
+                let num = parseFloat(val);                           
+                return isNaN(num) ? def : num;                       
+            }
+
+            class ControladorDigitalPID {
+                constructor(outMin = 0, outMax = 100) {
+                    this.outMin = outMin;   
+                    this.outMax = outMax;   
+                    this.e_k1 = 0;          
+                    this.pv_k1 = 0;         
+                    this.pv_k2 = 0;         
+                    this.u_k1 = 0;          
+                }
+
+                calcular(sp, pv, a0, a1, a2, dir, isAuto, manualMv, spTrackingAtivo = true) {
+                    let erroReal = sp - pv;       
+                    let e_k = dir * erroReal;     
+
+                    if (!isAuto) {
+                        if (spTrackingAtivo) sp = pv; 
+                        let u_manual = Math.max(this.outMin, Math.min(this.outMax, manualMv));
+                        this.u_k1 = u_manual; 
+                        this.e_k1 = dir * (sp - pv); 
+                        this.pv_k1 = pv;
+                        this.pv_k2 = pv;
+                        let manualSaturado = (u_manual <= this.outMin || u_manual >= this.outMax);
+                        return { mv: u_manual, novoSp: sp, erro: erroReal, saturado: manualSaturado }; 
+                    }
+                    
+                    let a0_PI = a0 - a2;
+                    let a1_PI = a1 + 2 * a2;
+                    let deltaPI = (a0_PI * e_k) + (a1_PI * this.e_k1);
+                    let deltaD = -dir * a2 * (pv - 2 * this.pv_k1 + this.pv_k2);
+                    let deltaU = deltaPI + deltaD;   
+                    let u_k = this.u_k1 + deltaU;    
+
+                    let isSaturado = false;
+                    if (u_k <= this.outMin || u_k >= this.outMax) isSaturado = true;
+                    
+                    u_k = Math.max(this.outMin, Math.min(this.outMax, u_k));
+
+                    this.e_k1 = e_k;           
+                    this.pv_k2 = this.pv_k1;   
+                    this.pv_k1 = pv;           
+                    this.u_k1 = u_k;           
+
+                    return { mv: u_k, novoSp: sp, erro: erroReal, saturado: isSaturado };
+                }
+            }
+            
+            let isAuto = true;       
+            let pv_atual = 25.0;     
+            let bufferVM = [];       // Fila de atraso (Tempo Morto)
+            let loopInterval = null; // Variável para gerir o laço de amostragem
+            
+            const pid = new ControladorDigitalPID(0, 100);
+            pid.pv_k1 = pv_atual;
+            pid.pv_k2 = pv_atual;
+
+            // INICIALIZAÇÃO CHART.JS
+            let trendChart = null; 
+            try {
+                if (typeof Chart !== 'undefined') {
+                    const ctx = document.getElementById('trendChart').getContext('2d');
+                    trendChart = new Chart(ctx, {
+                        type: 'line', 
+                        data: {
+                            labels: Array(60).fill(''), 
+                            datasets: [
+                                { label: 'VP', borderColor: '#00ff00', data: Array(60).fill(25), pointRadius: 0, tension: 0.1 },
+                                { label: 'SP', borderColor: '#00ffff', data: Array(60).fill(50), pointRadius: 0, borderDash: [5, 5] },
+                                { label: 'VM (%)', borderColor: '#ff00ff', data: Array(60).fill(0), pointRadius: 0, yAxisID: 'y1' }
+                            ]
+                        },
+                        options: {
+                            responsive: true, 
+                            animation: false, 
+                            scales: {
+                                y: { min: 0, max: 100, title: { display: true, text: 'Variáveis (VP / SP)', color: '#fff' }, grid: { color: '#333' } },
+                                y1: { min: 0, max: 100, position: 'right', title: { display: true, text: 'VM (%)', color: '#fff' }, grid: { drawOnChartArea: false } },
+                                x: { grid: { color: '#333' } }
+                            },
+                            plugins: { legend: { labels: { color: '#fff' } } } 
+                        }
+                    });
+                }
+            } catch(e) {
+                console.warn("Chart.js não carregado.", e);
+            }
+
+            const modoSintonia = document.getElementById('inp-modo-sintonia');
+            const boxPid = document.getElementById('box-pid');
+            const boxCoef = document.getElementById('box-coef');
+            const inpA0 = document.getElementById('inp-a0');
+            const inpA1 = document.getElementById('inp-a1');
+            const inpA2 = document.getElementById('inp-a2');
+
+            modoSintonia.addEventListener('change', (e) => {
+                if(e.target.value === 'pid') {
+                    boxPid.classList.remove('disabled-box');
+                    boxCoef.classList.add('disabled-box');
+                } else {
+                    boxPid.classList.add('disabled-box');
+                    boxCoef.classList.remove('disabled-box');
+                }
+            });
+
+            // Função que inicia/reinicia o laço sempre que o Período de Amostragem (Ts) for modificado
+            function iniciarLoop() {
+                if (loopInterval) clearInterval(loopInterval);
+                let Ts = getVal('inp-ts', 1);
+
+                loopInterval = setInterval(() => {
+                    let a0, a1, a2;
+                    
+                    // 1. AVALIAÇÃO DO PID
+                    if (modoSintonia.value === 'pid') {
+                        const Kp = getVal('inp-kp', 1.5);
+                        const Ti = getVal('inp-ti', 15);
+                        const Td = getVal('inp-td', 2);
+                        
+                        a0 = Kp * (1 + (Ts / Ti) + (Td / Ts));
+                        a1 = -Kp * (1 + 2 * (Td / Ts));
+                        a2 = Kp * (Td / Ts);
+
+                        if(inpA0) inpA0.value = a0.toFixed(4); 
+                        if(inpA1) inpA1.value = a1.toFixed(4);
+                        if(inpA2) inpA2.value = a2.toFixed(4);
+                    } else {
+                        a0 = getVal('inp-a0', 0);
+                        a1 = getVal('inp-a1', 0);
+                        a2 = getVal('inp-a2', 0);
+                    }
+
+                    let acaoEl = document.getElementById('inp-acao');
+                    let dir = (acaoEl && acaoEl.value === 'direta') ? -1 : 1;
+                    let sp_input = getVal('inp-sp', 50);
+                    const mv_man_input = getVal('inp-mv-man', 0);
+
+                    // 2. CALCULA O CONTROLADOR
+                    const resultado = pid.calcular(sp_input, pv_atual, a0, a1, a2, dir, isAuto, mv_man_input, true);
+                    const mv_aplicada = resultado.mv; 
+
+                    let spEl = document.getElementById('inp-sp');
+                    if (!isAuto && sp_input !== resultado.novoSp && spEl) {
+                        spEl.value = resultado.novoSp.toFixed(1);
+                    }
+
+                    // 3. MODELO DE PROCESSO DISCRETO (FOPDT + Distúrbio)
+                    let k_planta = getVal('inp-k-planta', 1.0);       
+                    let tau_planta = getVal('inp-tau-planta', 10); 
+                    let theta_planta = getVal('inp-theta-planta', 3);
+                    let bias_planta = getVal('inp-bias-planta', 25);  
+                    let ld_atual = getVal('inp-ld', 0); // Distúrbio de Carga (Passo 5)
+
+                    // Equações Discretas do FOPDT (Passo 4)
+                    let alpha = Math.exp(-Ts / (tau_planta > 0 ? tau_planta : 0.0001));
+                    let beta = k_planta * (1 - alpha);
+                    let d = Math.max(0, Math.round(theta_planta / Ts)); // Atraso em amostras
+                    
+                    // Lógica da fila (Buffer) para o Tempo Morto
+                    bufferVM.push(mv_aplicada);
+                    while (bufferVM.length > d + 1) bufferVM.shift();
+                    let mv_atrasada = bufferVM[0];
+
+                    let perturbacao = (Math.random() - 0.5) * 0.2; 
+                    
+                    // Equação a Diferenças
+                    pv_atual = (pv_atual * alpha) + 
+                               (bias_planta * (1 - alpha)) + 
+                               (mv_atrasada * beta) + 
+                               (ld_atual * (1 - alpha)) + 
+                               perturbacao;
+
+                    // 4. ATUALIZA DISPLAYS
+                    document.getElementById('disp-pv').innerText = pv_atual.toFixed(2);
+                    document.getElementById('disp-sp').innerText = resultado.novoSp.toFixed(2);
+                    document.getElementById('disp-ld').innerText = ld_atual.toFixed(2);
+                    document.getElementById('disp-mv').innerText = mv_aplicada.toFixed(2) + ' %';
+
+                    // 5. ALARMES
+                    let boxDispMv = document.getElementById('box-disp-mv');
+                    let labelDispMv = document.getElementById('label-disp-mv');
+                    
+                    if (resultado.saturado) {
+                        boxDispMv.classList.add('saturado-box');
+                        labelDispMv.classList.add('saturado-text');
+                        labelDispMv.innerText = "VM (SATURADA!)";
+                    } else {
+                        boxDispMv.classList.remove('saturado-box');
+                        labelDispMv.classList.remove('saturado-text');
+                        labelDispMv.innerText = "VM (Manipulada)";
+                    }
+
+                    // 6. ATUALIZA GRÁFICO
+                    if (trendChart) {
+                        trendChart.data.datasets[0].data.shift(); 
+                        trendChart.data.datasets[0].data.push(pv_atual);
+                        
+                        trendChart.data.datasets[1].data.shift(); 
+                        trendChart.data.datasets[1].data.push(resultado.novoSp);
+                        
+                        trendChart.data.datasets[2].data.shift(); 
+                        trendChart.data.datasets[2].data.push(mv_aplicada);
+                        
+                        trendChart.update();
+                    }
+
+                }, Ts * 1000); 
+            }
+
+            // Ativa o laço de imediato e relança se o operador mudar a amostragem
+            iniciarLoop();
+            document.getElementById('inp-ts').addEventListener('change', iniciarLoop);
+
+            // MANUSEAMENTO A/M (Manual / Auto)
+            const btnAM = document.getElementById('btn-am');
+            const inpMvMan = document.getElementById('inp-mv-man');
+            const inpSp = document.getElementById('inp-sp');
+
+            if(btnAM) {
+                btnAM.addEventListener('click', () => {
+                    isAuto = !isAuto; 
+                    
+                    if (isAuto) {
+                        btnAM.className = 'btn-toggle btn-auto';
+                        btnAM.innerText = 'MODO AUTOMÁTICO';
+                        if(inpMvMan) inpMvMan.disabled = true; 
+                        
+                        if(inpSp) {
+                            inpSp.disabled = false; 
+                            inpSp.value = getVal('inp-mv-man', 0).toFixed(1);
+                        }
+                    } else {
+                        btnAM.className = 'btn-toggle btn-manual';
+                        btnAM.innerText = 'MODO MANUAL';
+                        
+                        if(inpMvMan) {
+                            inpMvMan.disabled = false; 
+                            inpMvMan.value = parseFloat(document.getElementById('disp-mv').innerText).toFixed(1);
+                        }
+                        
+                        if(inpSp) inpSp.disabled = true; 
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
