@@ -192,7 +192,7 @@
             <button id="btn-am" class="btn-toggle btn-auto">MODO AUTOMÁTICO</button>
             
             <div class="form-group" style="margin-top: 15px;"><label>Setpoint (SP):</label><input type="number" id="inp-sp" value="50" step="1"></div>
-            <div class="form-group"><label>VM Manual (%):</label><input type="number" id="inp-mv-man" value="0" step="1" disabled></div>
+            <div class="form-group"><label>VM Manual (%):</label><input type="number" id="inp-mv-man" value="0" step="0.1" disabled></div>
         </div>
 
         <!-- PAINEL DIREITO -->
@@ -268,9 +268,11 @@
                 }
             }
             
+            // Variáveis globais do sistema
             let isAuto = true;       
             let pv_atual = 25.0;     
-            let bufferVM = Array(100).fill(0); // Pré-enchido com 0s para evitar erros nos primeiros ciclos
+            let ultima_mv = 0;       // MEMÓRIA EXATA DA VÁLVULA (Evita perdas ao mudar A/M)
+            let bufferVM = Array(100).fill(0); 
             let loopInterval = null; 
             
             const pid = new ControladorDigitalPID(0, 100);
@@ -338,7 +340,6 @@
                         const Ti = getVal('inp-ti', 12);
                         const Td = getVal('inp-td', 0);
                         
-                        // Blindagem matemática: evita divisão por zero se Ti ou Ts forem 0.
                         const termoI = (Ti > 0 && Ts > 0) ? (Ts / Ti) : 0;
                         const termoD = (Ts > 0) ? (Td / Ts) : 0;
                         
@@ -360,9 +361,12 @@
                     let sp_input = getVal('inp-sp', 50);
                     const mv_man_input = getVal('inp-mv-man', 0);
 
-                    // 2. CALCULA O CONTROLADOR (Setpoint Tracking desligado via 'false' no final)
+                    // 2. CALCULA O CONTROLADOR
                     const resultado = pid.calcular(sp_input, pv_atual, a0, a1, a2, dir, isAuto, mv_man_input, false);
                     const mv_aplicada = resultado.mv; 
+                    
+                    // Regista internamente a matemática exata da VM (Sem arredondamentos visuais)
+                    ultima_mv = mv_aplicada;
 
                     // 3. MODELO DE PROCESSO DISCRETO (FOPDT + Distúrbio)
                     let k_planta = getVal('inp-k-planta', 1.0);       
@@ -418,7 +422,7 @@
                         trendChart.data.datasets[2].data.shift(); 
                         trendChart.data.datasets[2].data.push(mv_aplicada);
                         
-                        trendChart.update('none'); // O 'none' desativa animações internas residuais melhorando a performance
+                        trendChart.update('none'); 
                     }
 
                 }, Ts * 1000); 
@@ -448,7 +452,8 @@
                         
                         if(inpMvMan) {
                             inpMvMan.disabled = false; 
-                            inpMvMan.value = parseFloat(document.getElementById('disp-mv').innerText).toFixed(1);
+                            // USAR A MEMÓRIA INTERNA PARA TRANSFERÊNCIA BUMPLESS PURA
+                            inpMvMan.value = ultima_mv.toFixed(2);
                         }
                     }
                 });
