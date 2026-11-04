@@ -1,76 +1,109 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Simulador de Processo Digital - Errata</title>
-    <script src="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"></script>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
 </head>
-<body class="bg-gray-900 text-gray-100 font-sans leading-normal tracking-normal">
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between">
 
-    <div class="container mx-auto p-6 max-w-6xl">
-        <header class="mb-8 text-center">
-            <h1 class="text-3xl font-bold text-blue-400 mb-2">Simulador de Processo Digital (Modelo com Errata)</h1>
-            <p class="text-gray-400">Simulação baseada na equação corrigida: $C(k) = 0,1535 \cdot m(k-4) + 0,8465 \cdot C(k-1)$</p>
+    <div class="container mx-auto p-4 md:p-8 max-w-7xl">
+        <!-- Cabeçalho -->
+        <header class="mb-8 text-center bg-slate-900/80 border border-slate-800 p-6 rounded-2xl shadow-xl backdrop-blur-md">
+            <h1 class="text-3xl md:text-4xl font-extrabold text-sky-400 mb-2 tracking-tight">Simulador de Processo Digital</h1>
+            <p class="text-slate-400 text-sm md:text-base">Implementação da Errata do Quadro: <code class="bg-slate-800 text-sky-300 px-2 py-1 rounded border border-slate-700">C(k) = 0,1535 · m(k-4) + 0,8465 · C(k-1)</code></p>
         </header>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <!-- Painel de Controle -->
-            <div class="bg-gray-800 p-6 rounded-lg shadow-lg md:col-span-1">
-                <h2 class="text-xl font-semibold mb-4 text-blue-300 border-b border-gray-700 pb-2">Parâmetros</h2>
-                
-                <div class="mb-4">
-                    <label class="block text-sm font-medium mb-1">Tipo de Entrada:</label>
-                    <select id="inputType" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white focus:outline-none focus:border-blue-500">
-                        <option value="step">Degrau</option>
-                        <option value="ramp">Rampa</option>
-                        <option value="pulse">Pulso</option>
-                    </select>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            <!-- Painel de Controles -->
+            <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl flex flex-col justify-between lg:col-span-1">
+                <div>
+                    <h2 class="text-xl font-semibold mb-5 text-sky-300 border-b border-slate-800 pb-3 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+                        Parâmetros da Simulação
+                    </h2>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-300 mb-1">Tipo de Entrada:</label>
+                            <select id="inputType" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white focus:outline-none focus:ring-2 focus:ring-sky-500 transition">
+                                <option value="step">Degrau</option>
+                                <option value="ramp">Rampa</option>
+                                <option value="pulse">Pulso</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-300 mb-1">Amplitude da Entrada:</label>
+                            <input type="number" id="inputAmplitude" value="100" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white focus:outline-none focus:ring-2 focus:ring-sky-500 transition">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-300 mb-1">Passos Totais (<span class="text-sky-400">k</span>):</label>
+                            <input type="number" id="numSteps" value="30" min="5" max="100" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white focus:outline-none focus:ring-2 focus:ring-sky-500 transition">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-300 mb-1">Período de Amostragem (<span class="text-sky-400">T</span> em seg):</label>
+                            <input type="number" id="sampleTime" value="20" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white focus:outline-none focus:ring-2 focus:ring-sky-500 transition">
+                        </div>
+                    </div>
                 </div>
 
-                <div class="mb-4">
-                    <label class="block text-sm font-medium mb-1">Amplitude da Entrada:</label>
-                    <input type="number" id="inputAmplitude" value="100" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white focus:outline-none focus:border-blue-500">
-                </div>
-
-                <div class="mb-4">
-                    <label class="block text-sm font-medium mb-1">Número de Passos ($k$):</label>
-                    <input type="number" id="numSteps" value="30" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white focus:outline-none focus:border-blue-500">
-                </div>
-
-                <button onclick="runSimulation()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition duration-200">
-                    Rodar Simulação
+                <button onclick="runSimulation()" class="mt-6 w-full bg-sky-600 hover:bg-sky-500 text-white font-semibold py-3 px-4 rounded-xl shadow-lg shadow-sky-600/30 transition duration-200 flex items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    Executar Simulação
                 </button>
             </div>
 
-            <!-- Gráfico -->
-            <div class="bg-gray-800 p-6 rounded-lg shadow-lg md:col-span-2 flex flex-col justify-between">
-                <h2 class="text-xl font-semibold mb-4 text-blue-300 border-b border-gray-700 pb-2">Gráfico de Resposta</h2>
-                <div class="relative h-64 md:h-80 w-full">
+            <!-- Gráfico Interativo -->
+            <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl lg:col-span-2 flex flex-col justify-between">
+                <h2 class="text-xl font-semibold mb-4 text-sky-300 border-b border-slate-800 pb-3 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg>
+                    Gráfico de Resposta Temporal
+                </h2>
+                <div class="relative h-72 md:h-96 w-full flex items-center justify-center">
                     <canvas id="simulationChart"></canvas>
                 </div>
             </div>
         </div>
 
         <!-- Tabela de Resultados -->
-        <div class="bg-gray-800 p-6 rounded-lg shadow-lg overflow-x-auto">
-            <h2 class="text-xl font-semibold mb-4 text-blue-300 border-b border-gray-700 pb-2">Tabela de Simulação Digital</h2>
-            <table class="w-full text-left border-collapse">
-                <thead>
-                    <tr class="bg-gray-700 text-blue-200">
-                        <th class="p-3 border-b border-gray-600">k</th>
-                        <th class="p-3 border-b border-gray-600">t_real (s)</th>
-                        <th class="p-3 border-b border-gray-600">m(k) [Entrada]</th>
-                        <th class="p-3 border-b border-gray-600">C(k) [Saída]</th>
-                    </tr>
-                </thead>
-                <tbody id="resultTableBody" class="text-gray-300">
-                    <!-- Preenchido via JavaScript -->
-                </tbody>
-            </table>
+        <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl overflow-hidden">
+            <h2 class="text-xl font-semibold mb-4 text-sky-300 border-b border-slate-800 pb-3 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                Tabela Numérica da Simulação Digital
+            </h2>
+            <div class="overflow-x-auto max-h-96 rounded-xl border border-slate-800">
+                <table class="w-full text-left border-collapse">
+                    <thead class="sticky top-0 bg-slate-950 text-sky-300 text-xs uppercase tracking-wider font-semibold z-10">
+                        <tr>
+                            <th class="p-3 border-b border-slate-800">Passo (k)</th>
+                            <th class="p-3 border-b border-slate-800">Tempo Real (s)</th>
+                            <th class="p-3 border-b border-slate-800">Entrada m(k)</th>
+                            <th class="p-3 border-b border-slate-800">Saída C(k)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultTableBody" class="text-slate-300 text-sm divide-y divide-slate-800/60">
+                        <!-- Preenchido via JavaScript -->
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
+
+    <footer class="mt-12 text-center text-xs text-slate-500 py-6 border-t border-slate-900">
+        Simulador Acadêmico de Sistemas de Controle Digital — Baseado nas notas de aula e errata.
+    </footer>
 
     <script>
         let myChart = null;
@@ -79,19 +112,18 @@
             const inputType = document.getElementById('inputType').value;
             const amplitude = parseFloat(document.getElementById('inputAmplitude').value);
             const totalSteps = parseInt(document.getElementById('numSteps').value);
-            const T = 20; // Período de amostragem em segundos
+            const T = parseFloat(document.getElementById('sampleTime').value);
 
             let kValues = [];
             let tRealValues = [];
             let mValues = [];
             let cValues = [];
 
-            // Histórico de entradas m(k) com capacidade para o atraso (n=4 -> m(k-4))
+            // Histórico de entradas m(k) com capacidade para o atraso n=4 -> m(k-4)
             let mHistory = [0, 0, 0, 0, 0];
             let cCurrent = 0;
 
             for (let k = 0; k <= totalSteps; k++) {
-                // Determinar a entrada atual m(k)
                 let mk = 0;
                 if (inputType === 'step') {
                     mk = amplitude;
@@ -107,7 +139,7 @@
                 if (mHistory.length > 5) mHistory.pop();
                 let m_delayed = mHistory[4]; // m(k-4)
 
-                // Cálculo da saída usando a equação da errata: C(k) = 0.1535 * m(k-4) + 0.8465 * C(k-1)
+                // Cálculo da saída usando a equação corrigida da errata
                 if (k > 0) {
                     cCurrent = 0.1535 * m_delayed + 0.8465 * cValues[k - 1];
                 } else {
@@ -139,8 +171,8 @@
                         {
                             label: 'Entrada m(k)',
                             data: mData,
-                            borderColor: 'rgba(239, 68, 68, 1)',
-                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                            borderColor: 'rgba(244, 63, 94, 1)',
+                            backgroundColor: 'rgba(244, 63, 94, 0.05)',
                             borderWidth: 2,
                             tension: 0.1,
                             stepped: true
@@ -148,10 +180,11 @@
                         {
                             label: 'Saída C(k)',
                             data: cData,
-                            borderColor: 'rgba(59, 130, 246, 1)',
-                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            borderColor: 'rgba(56, 189, 248, 1)',
+                            backgroundColor: 'rgba(56, 189, 248, 0.1)',
                             borderWidth: 2,
-                            tension: 0.2
+                            tension: 0.2,
+                            fill: true
                         }
                     ]
                 },
@@ -160,16 +193,18 @@
                     maintainAspectRatio: false,
                     scales: {
                         y: {
-                            grid: { color: 'rgba(75, 85, 99, 0.2)' },
-                            ticks: { color: '#9CA3AF' }
+                            grid: { color: 'rgba(51, 65, 85, 0.3)' },
+                            ticks: { color: '#94A3B8' }
                         },
                         x: {
-                            grid: { color: 'rgba(75, 85, 99, 0.2)' },
-                            ticks: { color: '#9CA3AF' }
+                            grid: { color: 'rgba(51, 65, 85, 0.3)' },
+                            ticks: { color: '#94A3B8' }
                         }
                     },
                     plugins: {
-                        legend: { labels: { color: '#E5E7EB' } }
+                        legend: { 
+                            labels: { color: '#F1F5F9', font: { family: 'Inter', weight: 500 } } 
+                        }
                     }
                 }
             });
@@ -181,18 +216,18 @@
 
             for (let i = 0; i < kArr.length; i++) {
                 const row = document.createElement('tr');
-                row.className = i % 2 === 0 ? 'bg-gray-800' : 'bg-gray-750';
+                row.className = i % 2 === 0 ? 'hover:bg-slate-800/50 transition' : 'bg-slate-900/40 hover:bg-slate-800/50 transition';
                 row.innerHTML = `
-                    <td class="p-3 border-b border-gray-700">${kArr[i]}</td>
-                    <td class="p-3 border-b border-gray-700">${tArr[i]}s</td>
-                    <td class="p-3 border-b border-gray-700">${mArr[i]}</td>
-                    <td class="p-3 border-b border-gray-700">${cArr[i]}</td>
+                    <td class="p-3 font-medium text-sky-400">${kArr[i]}</td>
+                    <td class="p-3">${tArr[i]}s</td>
+                    <td class="p-3 text-rose-400">${mArr[i]}</td>
+                    <td class="p-3 text-sky-200 font-semibold">${cArr[i]}</td>
                 `;
-                tbody.appendChild(row);
+                tbody.appendChild(rows = row);
             }
         }
 
-        // Executar simulação inicial ao carregar
+        // Executar simulação inicial ao carregar a página
         window.onload = runSimulation;
     </script>
 </body>
