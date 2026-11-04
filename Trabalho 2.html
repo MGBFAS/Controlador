@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simulador de Processo Digital - Errata</title>
+    <title>Simulador de Processo Digital</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Chart.js -->
@@ -20,7 +20,7 @@
         <!-- Cabeçalho -->
         <header class="mb-8 text-center bg-slate-900/80 border border-slate-800 p-6 rounded-2xl shadow-xl backdrop-blur-md">
             <h1 class="text-3xl md:text-4xl font-extrabold text-sky-400 mb-2 tracking-tight">Simulador de Processo Digital</h1>
-            <p class="text-slate-400 text-sm md:text-base">Implementação da Errata do Quadro: <code class="bg-slate-800 text-sky-300 px-2 py-1 rounded border border-slate-700">C(k) = 0,1535 · m(k-4) + 0,8465 · C(k-1)</code></p>
+            <p class="text-slate-400 text-sm md:text-base">Implementação do Modelo: <code class="bg-slate-800 text-sky-300 px-2 py-1 rounded border border-slate-700">C(k) = 0,1535 · m(k-4) + 0,8465 · C(k-1)</code></p>
         </header>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
@@ -102,7 +102,7 @@
     </div>
 
     <footer class="mt-12 text-center text-xs text-slate-500 py-6 border-t border-slate-900">
-        Simulador Acadêmico de Sistemas de Controle Digital — Baseado nas notas de aula e errata.
+        Simulador Acadêmico de Sistemas de Controle Digital.
     </footer>
 
     <script>
@@ -139,7 +139,7 @@
                 if (mHistory.length > 5) mHistory.pop();
                 let m_delayed = mHistory[4]; // m(k-4)
 
-                // Cálculo da saída usando a equação corrigida da errata
+                // Cálculo da saída usando a equação do modelo
                 if (k > 0) {
                     cCurrent = 0.1535 * m_delayed + 0.8465 * cValues[k - 1];
                 } else {
@@ -223,7 +223,7 @@
                     <td class="p-3 text-rose-400">${mArr[i]}</td>
                     <td class="p-3 text-sky-200 font-semibold">${cArr[i]}</td>
                 `;
-                tbody.appendChild(rows = row);
+                tbody.appendChild(row);
             }
         }
 
