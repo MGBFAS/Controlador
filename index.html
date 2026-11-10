@@ -1,234 +1,757 @@
-<!DOCTYPE html>
-<html lang="pt">
+<!doctype html>
+<html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simulador de Processo Digital</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Google Fonts Inter -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Inter', sans-serif; }
-    </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Simulador digital: vazão de minério em correia transportadora</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+<style>
+:root{
+  --bg:#E6E9E7; --panel:#F6F7F6; --panel-2:#ECEFED; --ink:#1C2226; --ink-2:#525C62; --line:#C6CCC9;
+  --safety:#E9B100; --ore:#8B3A24; --ore-2:#5A2213; --steel:#2B5E85; --olive:#52701A; --ref:#7F898F;
+  --ok:#2F7A4A; --warn:#A8461A; --belt:#2E3438; --metal:#8E989D; --focus:#2B5E85;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#181C1F; --panel:#20262A; --panel-2:#272E33; --ink:#E4E8EA; --ink-2:#A1ABB1; --line:#384147;
+    --safety:#F0C02A; --ore:#D27A52; --ore-2:#8E4325; --steel:#72A9D4; --olive:#A6C45E; --ref:#8A949A;
+    --ok:#6CC28E; --warn:#F09A6B; --belt:#4A545B; --metal:#6E787D; --focus:#72A9D4;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#181C1F; --panel:#20262A; --panel-2:#272E33; --ink:#E4E8EA; --ink-2:#A1ABB1; --line:#384147;
+  --safety:#F0C02A; --ore:#D27A52; --ore-2:#8E4325; --steel:#72A9D4; --olive:#A6C45E; --ref:#8A949A;
+  --ok:#6CC28E; --warn:#F09A6B; --belt:#4A545B; --metal:#6E787D; --focus:#72A9D4;
+  color-scheme:dark;
+}
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px);background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:16px;line-height:1.5;-webkit-text-size-adjust:100%}
+.wrap{max-width:1440px;margin:0 auto;padding:28px clamp(14px,3vw,40px) 56px}
+header{margin-bottom:26px;max-width:72ch}
+h1{font-family:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;font-weight:700;font-size:clamp(2.1rem,4.6vw,3.4rem);line-height:1;letter-spacing:-.01em;margin:0 0 .6rem}
+header p{margin:0;color:var(--ink-2);font-size:1.05rem}
+.layout{display:grid;gap:22px;grid-template-columns:minmax(0,1fr)}
+@media (min-width:1120px){.layout{grid-template-columns:minmax(380px,.82fr) minmax(0,1.18fr);align-items:start}}
+.col{display:flex;flex-direction:column;gap:18px;min-width:0}
+.step{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:20px clamp(16px,2vw,24px)}
+.step>h2{display:flex;gap:12px;align-items:center;font-family:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;font-weight:700;font-size:1.55rem;line-height:1.1;margin:0 0 .8rem}
+.num{flex:none;display:inline-grid;place-items:center;width:1.65em;height:1.65em;border-radius:3px;background:var(--safety);color:#1C2226;font-size:1.05rem}
+.step p{margin:.3rem 0 .8rem;max-width:68ch}
+.muted{color:var(--ink-2)}
+small,.small{font-size:.875rem}
+
+/* tags VP / VM / LD */
+.tags{display:grid;gap:10px;margin:.4rem 0 1.1rem}
+.tag{display:grid;grid-template-columns:3.2rem 1fr;gap:12px;align-items:start;padding:10px 12px;background:var(--panel-2);border-radius:4px;border-left:4px solid var(--c)}
+.tag b{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:1.35rem;line-height:1.2;color:var(--c)}
+.tag div{font-size:.95rem}
+.tag strong{font-weight:600}
+.c-vp{--c:var(--ore)} .c-vm{--c:var(--steel)} .c-ld{--c:var(--olive)}
+
+/* fields */
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(170px,100%),1fr));gap:12px 14px}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0;font-size:.9rem;color:var(--ink-2)}
+.field>span:first-child{line-height:1.25}
+.inp{display:flex;align-items:stretch;border:1px solid var(--line);border-radius:4px;background:var(--panel);overflow:hidden}
+.inp:focus-within{outline:2px solid var(--focus);outline-offset:1px}
+.inp input{flex:1;min-width:0;border:0;background:transparent;color:var(--ink);font:inherit;font-size:1rem;font-variant-numeric:tabular-nums;padding:7px 9px;outline:none}
+.inp em{font-style:normal;padding:7px 9px;background:var(--panel-2);color:var(--ink-2);font-size:.85rem;display:flex;align-items:center;white-space:nowrap}
+.derived{margin-top:12px;padding:10px 12px;border:1px dashed var(--line);border-radius:4px;font-size:.95rem}
+
+/* sampling */
+.range-bar{position:relative;height:38px;margin:14px 0 6px}
+.range-track{position:absolute;left:0;right:0;top:16px;height:6px;background:var(--panel-2);border-radius:3px;border:1px solid var(--line)}
+.range-ok{position:absolute;top:16px;height:6px;background:var(--ok);opacity:.55;border-radius:3px}
+.range-mark{position:absolute;top:8px;width:3px;height:22px;background:var(--ink);border-radius:2px;transform:translateX(-1px)}
+.range-lbl{display:flex;justify-content:space-between;font-size:.82rem;color:var(--ink-2)}
+input[type=range]{width:100%;accent-color:var(--steel);margin:8px 0 2px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.status{margin-top:10px;padding:8px 12px;border-radius:4px;font-size:.95rem;background:var(--panel-2);border-left:4px solid var(--ok)}
+.status.warn{border-left-color:var(--warn)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-top:12px}
+.kpi{background:var(--panel-2);border-radius:4px;padding:8px 10px}
+.kpi span{display:block;font-size:.8rem;color:var(--ink-2)}
+.kpi b{font-size:1.15rem;font-variant-numeric:tabular-nums;font-weight:600}
+
+/* equations */
+.eq{font-family:"Barlow",system-ui,sans-serif;font-style:italic;font-size:1.08rem;display:flex;flex-wrap:wrap;align-items:center;gap:.35em;margin:.5rem 0;padding:10px 12px;background:var(--panel-2);border-radius:4px;overflow-x:auto}
+.eq .n{font-style:normal;font-variant-numeric:tabular-nums}
+.frac{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 .15em}
+.frac>span{padding:0 .3em;white-space:nowrap}
+.frac>span:first-child{border-bottom:1.5px solid currentColor}
+.eq sub,.eq sup{font-size:.72em}
+.diffeq{font-family:"Barlow",system-ui,sans-serif;font-size:1rem;padding:10px 12px;background:var(--panel-2);border-radius:4px;margin:.5rem 0;overflow-x:auto;white-space:nowrap;font-variant-numeric:tabular-nums}
+.diffeq div+div{margin-top:4px}
+
+/* tables */
+.tbl-wrap{overflow-x:auto;margin:.6rem 0}
+table{border-collapse:collapse;width:100%;font-size:.93rem;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-weight:600;color:var(--ink-2);font-size:.85rem}
+td.r,th.r{text-align:right;white-space:nowrap}
+tbody tr:last-child td{border-bottom:0}
+
+/* bench */
+.presets{display:flex;flex-wrap:wrap;gap:8px;margin:.2rem 0 14px}
+button{font:inherit;cursor:pointer;border-radius:4px}
+.seg{border:1px solid var(--line);background:var(--panel-2);color:var(--ink);padding:6px 12px;font-size:.95rem}
+.seg[aria-pressed="true"]{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.btn{border:1px solid var(--ink);background:transparent;color:var(--ink);padding:8px 16px;font-weight:600}
+.btn.primary{background:var(--safety);border-color:var(--safety);color:#1C2226}
+button:focus-visible,select:focus-visible,input[type=range]:focus-visible,input[type=checkbox]:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.test-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr));gap:12px}
+fieldset{border:1px solid var(--line);border-radius:4px;padding:10px 12px 12px;margin:0;min-width:0}
+legend{padding:0 6px;font-weight:600;display:flex;gap:8px;align-items:center}
+legend input{width:16px;height:16px;accent-color:var(--steel)}
+fieldset .fields{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+fieldset.vm{border-left:4px solid var(--steel)} fieldset.ld{border-left:4px solid var(--olive)}
+fieldset:disabled .inp{opacity:.5}
+select{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:7px 8px}
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin:14px 0 16px}
+.controls .field{min-width:150px}
+
+.readouts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:4px 4px 0 0;overflow:hidden}
+.ro{background:var(--panel-2);padding:8px 12px;min-width:0}
+.ro span{display:block;font-size:.8rem;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ro b{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:1.55rem;line-height:1.1;font-variant-numeric:tabular-nums;font-weight:700;color:var(--c,var(--ink))}
+.ro b small{font-family:"Barlow",sans-serif;font-size:.8rem;font-weight:500;color:var(--ink-2);margin-left:3px}
+@media (max-width:560px){.readouts{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.belt-box{border:1px solid var(--line);border-top:0;border-radius:0 0 4px 4px;background:var(--panel);margin-bottom:16px}
+canvas#belt{display:block;width:100%;height:230px}
+.chart-box{position:relative;width:100%}
+.chart-vp{height:270px}
+.chart-in{height:170px;margin-top:6px}
+.chart-msg{padding:20px;color:var(--warn)}
+.errors{display:none;margin-bottom:14px;padding:10px 12px;border-radius:4px;border-left:4px solid var(--warn);background:var(--panel-2)}
+.errors.show{display:block}
+.results h3{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:1.25rem;margin:18px 0 4px}
+.note{font-size:.9rem;color:var(--ink-2);margin-top:6px}
+@media (prefers-reduced-motion: reduce){*{scroll-behavior:auto!important}}
+</style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between">
+<body>
+<div class="wrap">
+<header>
+  <h1>Vazão de minério na correia transportadora</h1>
+  <p>Simulador digital de um processo de primeira ordem com tempo morto, discretizado com segurador de ordem zero. Ajuste os dados à esquerda e rode os testes em degrau à direita: tudo é recalculado na hora.</p>
+</header>
 
-    <div class="container mx-auto p-4 md:p-8 max-w-7xl">
-        <!-- Cabeçalho -->
-        <header class="mb-8 text-center bg-slate-900/80 border border-slate-800 p-6 rounded-2xl shadow-xl backdrop-blur-md">
-            <h1 class="text-3xl md:text-4xl font-extrabold text-sky-400 mb-2 tracking-tight">Simulador de Processo Digital</h1>
-            <p class="text-slate-400 text-sm md:text-base">Implementação do Modelo: <code class="bg-slate-800 text-sky-300 px-2 py-1 rounded border border-slate-700">C(k) = 0,1535 · m(k-4) + 0,8465 · C(k-1)</code></p>
-        </header>
+<div class="layout">
+<div class="col">
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-            <!-- Painel de Controles -->
-            <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl flex flex-col justify-between lg:col-span-1">
-                <div>
-                    <h2 class="text-xl font-semibold mb-5 text-sky-300 border-b border-slate-800 pb-3 flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
-                        Parâmetros da Simulação
-                    </h2>
-                    
-                    <div class="space-y-4">
-                        <div>
-                            <label class="block text-sm font-medium text-slate-300 mb-1">Tipo de Entrada:</label>
-                            <select id="inputType" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white focus:outline-none focus:ring-2 focus:ring-sky-500 transition">
-                                <option value="step">Degrau</option>
-                                <option value="ramp">Rampa</option>
-                                <option value="pulse">Pulso</option>
-                            </select>
-                        </div>
+  <!-- PASSO 1 -->
+  <section class="step" aria-labelledby="h1s">
+    <h2 id="h1s"><span class="num">1</span>Processo físico</h2>
+    <p>Um silo descarrega minério sobre um alimentador de correia acionado por inversor de frequência. O alimentador despeja o material na correia transportadora, que o leva até uma balança integradora instalada a uma distância <i>L</i>.</p>
+    <div class="tags">
+      <div class="tag c-vp"><b>VP</b><div><strong>Vazão mássica de minério (t/h)</strong>, medida pela balança integradora WIT-101 sobre a correia.</div></div>
+      <div class="tag c-vm"><b>VM</b><div><strong>Velocidade do alimentador (%)</strong>, sinal de 0 a 100 % enviado ao inversor SC-101. Mais velocidade, mais volume de minério retirado do silo.</div></div>
+      <div class="tag c-ld"><b>LD</b><div><strong>Densidade aparente do minério (t/m³)</strong>. Muda com umidade, granulometria e troca de pilha; como o alimentador é volumétrico, altera a vazão mássica sem que a VM mude.</div></div>
+    </div>
+    <div class="fields">
+      <label class="field"><span>Distância alimentador até balança, <i>L</i></span><span class="inp"><input id="L" type="number" value="40" min="1" step="1"><em>m</em></span></label>
+      <label class="field"><span>Velocidade da correia, <i>v</i></span><span class="inp"><input id="v" type="number" value="2.5" min="0.1" step="0.1"><em>m/s</em></span></label>
+      <label class="field"><span>Capacidade do alimentador a 100 %</span><span class="inp"><input id="Qmax" type="number" value="1200" min="1" step="50"><em>t/h</em></span></label>
+      <label class="field"><span>Constante de tempo do alimentador e inversor, <i>τ</i></span><span class="inp"><input id="tau" type="number" value="6" min="0.1" step="0.5"><em>s</em></span></label>
+      <label class="field"><span>Constante de tempo da densidade no silo, <i>τ</i><sub>d</sub></span><span class="inp"><input id="taud" type="number" value="8" min="0.1" step="0.5"><em>s</em></span></label>
+      <label class="field"><span>Velocidade no ponto de operação, <i>u</i><sub>0</sub></span><span class="inp"><input id="u0" type="number" value="50" min="0" max="100" step="1"><em>%</em></span></label>
+      <label class="field"><span>Densidade no ponto de operação, <i>ρ</i><sub>0</sub></span><span class="inp"><input id="rho0" type="number" value="2.4" min="0.1" step="0.05"><em>t/m³</em></span></label>
+    </div>
+    <div class="derived" id="derived1"></div>
+  </section>
 
-                        <div>
-                            <label class="block text-sm font-medium text-slate-300 mb-1">Amplitude da Entrada:</label>
-                            <input type="number" id="inputAmplitude" value="100" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white focus:outline-none focus:ring-2 focus:ring-sky-500 transition">
-                        </div>
+  <!-- PASSO 2 -->
+  <section class="step" aria-labelledby="h2s">
+    <h2 id="h2s"><span class="num">2</span>Período de amostragem</h2>
+    <p>Critério adotado: de 4 a 20 amostras por constante de tempo, usando a menor delas (<i>τ</i><sub>min</sub>/20 ≤ <i>T</i> ≤ <i>τ</i><sub>min</sub>/4). Dentro da faixa, prefira um <i>T</i> que divida o tempo morto em um número inteiro de amostras.</p>
+    <div id="rangeText" class="small"></div>
+    <div class="range-bar" aria-hidden="true">
+      <div class="range-track"></div><div class="range-ok" id="rangeOk"></div><div class="range-mark" id="rangeMark"></div>
+    </div>
+    <div class="range-lbl" aria-hidden="true"><span>0 s</span><span id="rangeMaxLbl"></span></div>
+    <input id="Tslider" type="range" min="0.05" max="3" step="0.05" value="0.5" aria-label="Período de amostragem">
+    <div class="row">
+      <label class="field" style="flex:0 1 180px"><span>Período escolhido, <i>T</i></span><span class="inp"><input id="T" type="number" value="0.5" min="0.01" step="0.05"><em>s</em></span></label>
+      <button class="btn" id="useSuggested" type="button" style="align-self:end">Usar o sugerido</button>
+    </div>
+    <div class="status" id="Tstatus"></div>
+    <div class="kpis" id="Tkpis"></div>
+  </section>
 
-                        <div>
-                            <label class="block text-sm font-medium text-slate-300 mb-1">Passos Totais (<span class="text-sky-400">k</span>):</label>
-                            <input type="number" id="numSteps" value="30" min="5" max="100" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white focus:outline-none focus:ring-2 focus:ring-sky-500 transition">
-                        </div>
+  <!-- PASSO 3 -->
+  <section class="step" aria-labelledby="h3s">
+    <h2 id="h3s"><span class="num">3</span>Modelo de primeira ordem com tempo morto</h2>
+    <p>Em variáveis de desvio em torno do ponto de operação, a VP responde à VM e à LD pela soma de dois modelos FOPDT:</p>
+    <div id="modelEq"></div>
+    <div class="tbl-wrap"><table id="modelTbl"></table></div>
+  </section>
 
-                        <div>
-                            <label class="block text-sm font-medium text-slate-300 mb-1">Período de Amostragem (<span class="text-sky-400">T</span> em seg):</label>
-                            <input type="number" id="sampleTime" value="20" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white focus:outline-none focus:ring-2 focus:ring-sky-500 transition">
-                        </div>
-                    </div>
-                </div>
+  <!-- PASSO 4 -->
+  <section class="step" aria-labelledby="h4s">
+    <h2 id="h4s"><span class="num">4</span>Modelo discreto</h2>
+    <p>Com segurador de ordem zero, o tempo morto é dividido em <i>θ</i> = <i>d</i>·<i>T</i> + <i>θ</i>′ (0 ≤ <i>θ</i>′ &lt; <i>T</i>). A parte fracionária <i>θ</i>′ é tratada com a transformada Z modificada:</p>
+    <div class="eq"><span>a = e<sup>−T/τ</sup></span>,&nbsp;&nbsp;<span>b<sub>1</sub> = 1 − e<sup>−(T−θ′)/τ</sup></span>,&nbsp;&nbsp;<span>b<sub>2</sub> = e<sup>−(T−θ′)/τ</sup> − a</span></div>
+    <div class="eq"><span>G(z) = </span><span class="frac"><span>K z<sup>−(d+1)</sup> (b<sub>1</sub> + b<sub>2</sub> z<sup>−1</sup>)</span><span>1 − a z<sup>−1</sup></span></span></div>
+    <div class="tbl-wrap"><table id="discTbl"></table></div>
+    <div id="discEq"></div>
+    <p class="note">Equações a diferenças em desvio. A VP simulada é <i>VP</i>(k) = <i>Q</i><sub>0</sub> + Δ<i>y</i><sub>u</sub>(k) + Δ<i>y</i><sub>d</sub>(k) + ruído da balança.</p>
+  </section>
+</div>
 
-                <button onclick="runSimulation()" class="mt-6 w-full bg-sky-600 hover:bg-sky-500 text-white font-semibold py-3 px-4 rounded-xl shadow-lg shadow-sky-600/30 transition duration-200 flex items-center justify-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    Executar Simulação
-                </button>
-            </div>
-
-            <!-- Gráfico Interativo -->
-            <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl lg:col-span-2 flex flex-col justify-between">
-                <h2 class="text-xl font-semibold mb-4 text-sky-300 border-b border-slate-800 pb-3 flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg>
-                    Gráfico de Resposta Temporal
-                </h2>
-                <div class="relative h-72 md:h-96 w-full flex items-center justify-center">
-                    <canvas id="simulationChart"></canvas>
-                </div>
-            </div>
+<div class="col">
+  <!-- PASSO 5 -->
+  <section class="step" aria-labelledby="h5s">
+    <h2 id="h5s"><span class="num">5</span>Testes com entrada em degrau</h2>
+    <div class="errors" id="errors" role="alert"></div>
+    <div class="presets" role="group" aria-label="Testes prontos">
+      <button class="seg" type="button" data-preset="vm" aria-pressed="false">Degrau na VM</button>
+      <button class="seg" type="button" data-preset="ld" aria-pressed="false">Degrau na LD</button>
+      <button class="seg" type="button" data-preset="both" aria-pressed="true">VM e LD</button>
+    </div>
+    <div class="test-grid">
+      <fieldset class="vm" id="fsVM">
+        <legend><input type="checkbox" id="vmOn" checked aria-label="Aplicar degrau na VM">Degrau na VM</legend>
+        <div class="fields">
+          <label class="field"><span>Amplitude Δ<i>u</i></span><span class="inp"><input id="du" type="number" value="10" step="1"><em>%</em></span></label>
+          <label class="field"><span>Instante</span><span class="inp"><input id="tU" type="number" value="10" min="0" step="1"><em>s</em></span></label>
         </div>
-
-        <!-- Tabela de Resultados -->
-        <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl overflow-hidden">
-            <h2 class="text-xl font-semibold mb-4 text-sky-300 border-b border-slate-800 pb-3 flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-                Tabela Numérica da Simulação Digital
-            </h2>
-            <div class="overflow-x-auto max-h-96 rounded-xl border border-slate-800">
-                <table class="w-full text-left border-collapse">
-                    <thead class="sticky top-0 bg-slate-950 text-sky-300 text-xs uppercase tracking-wider font-semibold z-10">
-                        <tr>
-                            <th class="p-3 border-b border-slate-800">Passo (k)</th>
-                            <th class="p-3 border-b border-slate-800">Tempo Real (s)</th>
-                            <th class="p-3 border-b border-slate-800">Entrada m(k)</th>
-                            <th class="p-3 border-b border-slate-800">Saída C(k)</th>
-                        </tr>
-                    </thead>
-                    <tbody id="resultTableBody" class="text-slate-300 text-sm divide-y divide-slate-800/60">
-                        <!-- Preenchido via JavaScript -->
-                    </tbody>
-                </table>
-            </div>
+      </fieldset>
+      <fieldset class="ld" id="fsLD">
+        <legend><input type="checkbox" id="ldOn" checked aria-label="Aplicar degrau na LD">Degrau na LD</legend>
+        <div class="fields">
+          <label class="field"><span>Amplitude Δ<i>ρ</i></span><span class="inp"><input id="drho" type="number" value="-0.2" step="0.05"><em>t/m³</em></span></label>
+          <label class="field"><span>Instante</span><span class="inp"><input id="tD" type="number" value="80" min="0" step="1"><em>s</em></span></label>
         </div>
+      </fieldset>
+    </div>
+    <div class="controls">
+      <label class="field"><span>Duração do teste</span><span class="inp"><input id="dur" type="number" value="160" min="1" step="10"><em>s</em></span></label>
+      <label class="field"><span>Ruído da balança (desvio padrão)</span><span class="inp"><input id="noise" type="number" value="3" min="0" step="1"><em>t/h</em></span></label>
+      <label class="field"><span>Reprodução</span>
+        <select id="speed"><option value="1">Tempo real</option><option value="5">5× mais rápido</option><option value="10" selected>10× mais rápido</option><option value="30">30× mais rápido</option><option value="0">Instantânea</option></select>
+      </label>
+    </div>
+    <div class="row" style="margin-bottom:16px">
+      <button class="btn primary" id="run" type="button">Executar teste</button>
+      <button class="btn" id="pause" type="button">Pausar</button>
+      <button class="btn" id="reset" type="button">Voltar ao início</button>
     </div>
 
-    <footer class="mt-12 text-center text-xs text-slate-500 py-6 border-t border-slate-900">
-        Simulador Acadêmico de Sistemas de Controle Digital.
-    </footer>
+    <div class="readouts" aria-live="off">
+      <div class="ro"><span>Tempo</span><b id="roT">0,0<small>s</small></b></div>
+      <div class="ro" style="--c:var(--steel)"><span>VM, alimentador</span><b id="roU">—</b></div>
+      <div class="ro" style="--c:var(--olive)"><span>LD, densidade</span><b id="roR">—</b></div>
+      <div class="ro" style="--c:var(--ore)"><span>VP, balança</span><b id="roY">—</b></div>
+    </div>
+    <div class="belt-box"><canvas id="belt" role="img" aria-label="Animação da correia: minério sai do silo, percorre a correia e passa pela balança"></canvas></div>
 
-    <script>
-        let myChart = null;
+    <div class="chart-box chart-vp"><canvas id="chVP" aria-label="Gráfico da vazão medida ao longo do tempo"></canvas></div>
+    <div class="chart-box chart-in"><canvas id="chIN" aria-label="Gráfico da VM e da LD ao longo do tempo"></canvas></div>
 
-        function runSimulation() {
-            const inputType = document.getElementById('inputType').value;
-            const amplitude = parseFloat(document.getElementById('inputAmplitude').value);
-            const totalSteps = parseInt(document.getElementById('numSteps').value);
-            const T = parseFloat(document.getElementById('sampleTime').value);
+    <div class="results" id="results"></div>
+  </section>
+</div>
+</div>
+</div>
 
-            let kValues = [];
-            let tRealValues = [];
-            let mValues = [];
-            let cValues = [];
+<script>
+(function(){
+"use strict";
+const $ = id => document.getElementById(id);
+const nf = (x, d = 2) => Number.isFinite(x) ? x.toLocaleString('pt-BR', {minimumFractionDigits: d, maximumFractionDigits: d}) : '—';
+const mn = s => String(s).replace(/^-/, '−');
+const nfs = (x, d) => mn(nf(x, d));
+const signed = (x, d) => (x < 0 ? '− ' : '+ ') + nf(Math.abs(x), d);
+const sup = s => '<sup>' + s + '</sup>';
 
-            // Histórico de entradas m(k) com capacidade para o atraso n=4 -> m(k-4)
-            let mHistory = [0, 0, 0, 0, 0];
-            let cCurrent = 0;
+const ids = ['L','v','Qmax','tau','taud','u0','rho0','T','du','tU','drho','tD','dur','noise'];
+let P = {}, M = {}, Dp = {}, Dd = {}, R = null, SR = {};
+let prevDur = 0, tp = 0, playing = false, lastTs = null, beltPos = 0, lastChartTs = 0, chartTpDrawn = -1;
+let C = {};
+let chVP = null, chIN = null;
+const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-            for (let k = 0; k <= totalSteps; k++) {
-                let mk = 0;
-                if (inputType === 'step') {
-                    mk = amplitude;
-                } else if (inputType === 'ramp') {
-                    mk = amplitude * (k / totalSteps);
-                } else if (inputType === 'pulse') {
-                    if (k >= 2 && k <= 8) mk = amplitude;
-                    else mk = 0;
-                }
+function readColors(){
+  const cs = getComputedStyle(document.documentElement);
+  ['ink','ink-2','line','ore','ore-2','belt','metal','safety','steel','olive','ref','panel','panel-2'].forEach(k => C[k] = cs.getPropertyValue('--' + k).trim());
+}
 
-                // Atualizar histórico de m para o atraso de 4 amostras -> m(k-4)
-                mHistory.unshift(mk);
-                if (mHistory.length > 5) mHistory.pop();
-                let m_delayed = mHistory[4]; // m(k-4)
+/* ---------- leitura e validação ---------- */
+function read(){
+  ids.forEach(id => P[id] = parseFloat($(id).value));
+  P.vmOn = $('vmOn').checked; P.ldOn = $('ldOn').checked;
+}
+function validate(){
+  const e = [];
+  const pos = (k, n) => { if (!(P[k] > 0)) e.push(n + ' deve ser maior que zero.'); };
+  pos('L', 'A distância L'); pos('v', 'A velocidade da correia'); pos('Qmax', 'A capacidade do alimentador');
+  pos('tau', 'A constante de tempo τ'); pos('taud', 'A constante de tempo τd'); pos('rho0', 'A densidade ρ0');
+  pos('T', 'O período de amostragem T'); pos('dur', 'A duração do teste');
+  if (!(P.u0 >= 0 && P.u0 <= 100)) e.push('A velocidade no ponto de operação deve ficar entre 0 e 100 %.');
+  if (P.T > 0 && P.dur > 0 && P.dur / P.T > 20000) e.push('O teste teria mais de 20 000 amostras. Aumente T ou reduza a duração.');
+  ['du','tU','drho','tD'].forEach(k => { if (!Number.isFinite(P[k])) P[k] = 0; });
+  if (!(P.noise >= 0)) P.noise = 0;
+  if (P.tU < 0) P.tU = 0; if (P.tD < 0) P.tD = 0;
+  return e;
+}
 
-                // Cálculo da saída usando a equação do modelo
-                if (k > 0) {
-                    cCurrent = 0.1535 * m_delayed + 0.8465 * cValues[k - 1];
-                } else {
-                    cCurrent = 0.1535 * m_delayed + 0.8465 * 0;
-                }
+/* ---------- passos 1 e 3: modelo ---------- */
+function model(){
+  const theta = P.L / P.v;
+  const Kp = P.Qmax / 100;
+  const Q0 = Kp * P.u0;
+  const Kd = Q0 / P.rho0;
+  return {theta, thetad: theta, Kp, Kd, Q0, tau: P.tau, taud: P.taud};
+}
 
-                kValues.push(k);
-                tRealValues.push(k * T);
-                mValues.push(mk);
-                cValues.push(parseFloat(cCurrent.toFixed(4)));
-            }
+/* ---------- passo 2: amostragem ---------- */
+function sampling(){
+  const tmin = Math.min(M.tau, M.taud);
+  const Tmin = tmin / 20, Tmax = tmin / 4, target = tmin / 10;
+  const nice = [];
+  for (let e = -2; e <= 2; e++) [1,1.2,1.5,2,2.5,3,4,5,6,8].forEach(m => nice.push(+(m * Math.pow(10, e)).toPrecision(6)));
+  const inRange = nice.filter(T => T >= Tmin - 1e-12 && T <= Tmax + 1e-12);
+  const divides = inRange.filter(T => { const r = M.theta / T; return Math.abs(r - Math.round(r)) < 1e-6; });
+  const pool = divides.length ? divides : inRange;
+  let best = pool.length ? pool.reduce((a, b) => Math.abs(b - target) < Math.abs(a - target) ? b : a) : +target.toPrecision(2);
+  return {Tmin, Tmax, Tsug: best, tmin, divides: divides.length > 0};
+}
 
-            renderChart(kValues, mValues, cValues);
-            renderTable(kValues, tRealValues, mValues, cValues);
-        }
+/* ---------- passo 4: discretização (ZOH + Z modificada) ---------- */
+function discretize(K, tau, theta, T){
+  let d = Math.floor(theta / T + 1e-9);
+  let thp = theta - d * T;
+  if (Math.abs(thp) < 1e-9 || thp < 0) thp = 0;
+  if (thp >= T - 1e-9) { d += 1; thp = 0; }
+  const a = Math.exp(-T / tau);
+  const em = Math.exp(-(T - thp) / tau);
+  const b1 = 1 - em, b2 = em - a;
+  return {K, tau, theta, T, d, thp, a, b1, b2, c1: K * b1, c2: K * b2};
+}
 
-        function renderChart(labels, mData, cData) {
-            const ctx = document.getElementById('simulationChart').getContext('2d');
-            
-            if (myChart) {
-                myChart.destroy();
-            }
+/* ---------- passo 5: simulação ---------- */
+function gauss(){ let u = 0, v = 0; while (u === 0) u = Math.random(); while (v === 0) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+function stepResp(A, s, th, ta){ return s > th ? A * (1 - Math.exp(-(s - th) / ta)) : 0; }
 
-            myChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [
-                        {
-                            label: 'Entrada m(k)',
-                            data: mData,
-                            borderColor: 'rgba(244, 63, 94, 1)',
-                            backgroundColor: 'rgba(244, 63, 94, 0.05)',
-                            borderWidth: 2,
-                            tension: 0.1,
-                            stepped: true
-                        },
-                        {
-                            label: 'Saída C(k)',
-                            data: cData,
-                            borderColor: 'rgba(56, 189, 248, 1)',
-                            backgroundColor: 'rgba(56, 189, 248, 0.1)',
-                            borderWidth: 2,
-                            tension: 0.2,
-                            fill: true
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            grid: { color: 'rgba(51, 65, 85, 0.3)' },
-                            ticks: { color: '#94A3B8' }
-                        },
-                        x: {
-                            grid: { color: 'rgba(51, 65, 85, 0.3)' },
-                            ticks: { color: '#94A3B8' }
-                        }
-                    },
-                    plugins: {
-                        legend: { 
-                            labels: { color: '#F1F5F9', font: { family: 'Inter', weight: 500 } } 
-                        }
-                    }
-                }
-            });
-        }
+function simulate(newNoise){
+  const T = P.T, N = Math.floor(P.dur / T + 1e-9) + 1;
+  const kU = Math.round(P.tU / T), kD = Math.round(P.tD / T);
+  const du = k => (P.vmOn && k >= kU && k >= 0) ? P.du : 0;
+  const dr = k => (P.ldOn && k >= kD && k >= 0) ? P.drho : 0;
+  const yu = new Float64Array(N), yd = new Float64Array(N);
+  let noise = (!newNoise && R && R.noiseRaw && R.noiseRaw.length === N) ? R.noiseRaw : null;
+  if (!noise) { noise = new Float64Array(N); for (let k = 0; k < N; k++) noise[k] = gauss(); }
+  const ym = new Float64Array(N), u = new Float64Array(N), rho = new Float64Array(N);
+  for (let k = 0; k < N; k++) {
+    const yu1 = k > 0 ? yu[k-1] : 0, yd1 = k > 0 ? yd[k-1] : 0;
+    yu[k] = Dp.a * yu1 + Dp.c1 * du(k - 1 - Dp.d) + Dp.c2 * du(k - 2 - Dp.d);
+    yd[k] = Dd.a * yd1 + Dd.c1 * dr(k - 1 - Dd.d) + Dd.c2 * dr(k - 2 - Dd.d);
+    ym[k] = M.Q0 + yu[k] + yd[k] + P.noise * noise[k];
+    u[k] = P.u0 + du(k); rho[k] = P.rho0 + dr(k);
+  }
+  const tUa = kU * T, tDa = kD * T;
+  const Au = P.vmOn ? M.Kp * P.du : 0, Ad = P.ldOn ? M.Kd * P.drho : 0;
+  const Qc = t => M.Q0 + stepResp(Au, t - tUa, M.theta, M.tau) + stepResp(Ad, t - tDa, M.thetad, M.taud);
+  // erro discreto x contínuo nos instantes kT
+  let errMax = 0;
+  for (let k = 0; k < N; k++) errMax = Math.max(errMax, Math.abs(M.Q0 + yu[k] + yd[k] - Qc(k * T)));
+  // pontos para os gráficos
+  const ptsY = [], ptsU = [], ptsR = [];
+  for (let k = 0; k < N; k++) { const t = k * T; ptsY.push({x: t, y: ym[k]}); ptsU.push({x: t, y: u[k]}); ptsR.push({x: t, y: rho[k]}); }
+  const nC = Math.min(2000, Math.max(400, Math.ceil(P.dur / T * 4)));
+  const ptsC = [];
+  for (let i = 0; i < nC; i++) { const t = P.dur * i / (nC - 1); ptsC.push({x: t, y: Qc(t)}); }
+  let ymin = Infinity, ymax = -Infinity;
+  for (let k = 0; k < N; k++) { ymin = Math.min(ymin, ym[k]); ymax = Math.max(ymax, ym[k]); }
+  ptsC.forEach(p => { ymin = Math.min(ymin, p.y); ymax = Math.max(ymax, p.y); });
+  R = {N, T, kU, kD, tUa, tDa, Au, Ad, yu, yd, ym, u, rho, noiseRaw: noise, Qc, errMax, ptsY, ptsU, ptsR, ptsC, ymin, ymax};
+}
 
-        function renderTable(kArr, tArr, mArr, cArr) {
-            const tbody = document.getElementById('resultTableBody');
-            tbody.innerHTML = '';
+/* identificação pelo método de Smith (28,3 % e 63,2 %) */
+function identify(arr, kStep, dIn){
+  const N = arr.length, yf = arr[N - 1];
+  if (!dIn || Math.abs(yf) < 1e-9) return null;
+  const tAt = f => {
+    for (let k = 1; k < N; k++) {
+      const r0 = arr[k-1] / yf, r1 = arr[k] / yf;
+      if (r1 >= f && r0 < f) return (k - 1 + (f - r0) / (r1 - r0)) * P.T;
+    }
+    return NaN;
+  };
+  const t28 = tAt(0.283), t63 = tAt(0.632);
+  const tau = 1.5 * (t63 - t28);
+  const theta = t63 - tau - kStep * P.T;
+  return {K: yf / dIn, tau, theta, t28, t63};
+}
 
-            for (let i = 0; i < kArr.length; i++) {
-                const row = document.createElement('tr');
-                row.className = i % 2 === 0 ? 'hover:bg-slate-800/50 transition' : 'bg-slate-900/40 hover:bg-slate-800/50 transition';
-                row.innerHTML = `
-                    <td class="p-3 font-medium text-sky-400">${kArr[i]}</td>
-                    <td class="p-3">${tArr[i]}s</td>
-                    <td class="p-3 text-rose-400">${mArr[i]}</td>
-                    <td class="p-3 text-sky-200 font-semibold">${cArr[i]}</td>
-                `;
-                tbody.appendChild(row);
-            }
-        }
+/* ---------- renderização dos passos ---------- */
+function frac(n, d){ return '<span class="frac"><span>' + n + '</span><span>' + d + '</span></span>'; }
 
-        // Executar simulação inicial ao carregar a página
-        window.onload = runSimulation;
-    </script>
+function renderSteps(){
+  $('derived1').innerHTML =
+    'Tempo de transporte até a balança: <i>θ</i> = <i>L</i>/<i>v</i> = ' + nf(P.L,1) + '/' + nf(P.v,2) + ' = <b>' + nf(M.theta,1) + ' s</b>. ' +
+    'Vazão no ponto de operação: <i>Q</i><sub>0</sub> = ' + nf(M.Kp,2) + ' × ' + nf(P.u0,0) + ' = <b>' + nf(M.Q0,1) + ' t/h</b>.';
+
+  // passo 2
+  const Tmax = SR.Tmax, Tmin = SR.Tmin;
+  const scaleMax = Math.max(Tmax * 2, P.T * 1.15, 0.5);
+  const sl = $('Tslider'); sl.max = (Math.ceil(scaleMax * 20) / 20).toFixed(2);
+  const pct = x => Math.min(100, x / parseFloat(sl.max) * 100);
+  $('rangeOk').style.left = pct(Tmin) + '%'; $('rangeOk').style.width = (pct(Tmax) - pct(Tmin)) + '%';
+  $('rangeMark').style.left = pct(P.T) + '%';
+  $('rangeMaxLbl').textContent = nf(parseFloat(sl.max), 2) + ' s';
+  if (document.activeElement !== sl) sl.value = P.T;
+  $('rangeText').innerHTML = 'Com <i>τ</i><sub>min</sub> = ' + nf(SR.tmin,1) + ' s, a faixa é <b>' + nf(Tmin,2) + ' s ≤ <i>T</i> ≤ ' + nf(Tmax,2) + ' s</b> (verde). Sugerido: <b>' + nf(SR.Tsug,2) + ' s</b>' + (SR.divides ? ', que divide exatamente o tempo morto.' : '.');
+  $('useSuggested').textContent = 'Usar o sugerido (' + nf(SR.Tsug,2) + ' s)';
+  const st = $('Tstatus');
+  const inR = P.T >= Tmin - 1e-9 && P.T <= Tmax + 1e-9;
+  st.classList.toggle('warn', !inR);
+  const ratio = M.theta / P.T, intDiv = Math.abs(ratio - Math.round(ratio)) < 1e-6;
+  st.innerHTML = inR
+    ? '<i>T</i> = ' + nf(P.T,2) + ' s está dentro da faixa.' + (intDiv ? ' O tempo morto corresponde a um número inteiro de amostras.' : ' O tempo morto não é múltiplo de <i>T</i>: o modelo discreto ganha o termo <i>b</i><sub>2</sub>.')
+    : (P.T > Tmax
+        ? '<i>T</i> = ' + nf(P.T,2) + ' s está acima da faixa: poucas amostras por constante de tempo, o transitório fica mal representado e o controle digital perde desempenho.'
+        : '<i>T</i> = ' + nf(P.T,2) + ' s está abaixo da faixa: amostras demais, o polo <i>a</i> fica muito perto de 1 e o modelo fica sensível a arredondamento e ruído.');
+  $('Tkpis').innerHTML =
+    '<div class="kpi"><span>Amostras em τ</span><b>' + nf(M.tau / P.T,1) + '</b></div>' +
+    '<div class="kpi"><span>Amostras no tempo morto</span><b>' + nf(ratio,2) + '</b></div>' +
+    '<div class="kpi"><span>Frequência de amostragem</span><b>' + nf(1 / P.T,2) + ' Hz</b></div>' +
+    '<div class="kpi"><span>Amostras no teste</span><b>' + nf(Math.floor(P.dur / P.T + 1e-9) + 1,0) + '</b></div>';
+
+  // passo 3
+  $('modelEq').innerHTML =
+    '<div class="eq"><span>G<sub>p</sub>(s) = ' + frac('ΔVP(s)', 'ΔVM(s)') + ' = ' + frac('K<sub>p</sub> e' + sup('−θs'), 'τs + 1') + ' = ' + frac('<span class="n">' + nf(M.Kp,2) + '</span> e' + sup('−' + nf(M.theta,1) + 's'), '<span class="n">' + nf(M.tau,1) + '</span>s + 1') + '</span></div>' +
+    '<div class="eq"><span>G<sub>d</sub>(s) = ' + frac('ΔVP(s)', 'ΔLD(s)') + ' = ' + frac('K<sub>d</sub> e' + sup('−θ<sub>d</sub>s'), 'τ<sub>d</sub>s + 1') + ' = ' + frac('<span class="n">' + nf(M.Kd,1) + '</span> e' + sup('−' + nf(M.thetad,1) + 's'), '<span class="n">' + nf(M.taud,1) + '</span>s + 1') + '</span></div>';
+  $('modelTbl').innerHTML =
+    '<thead><tr><th>Parâmetro</th><th class="r">Valor</th><th>Origem física</th></tr></thead><tbody>' +
+    '<tr><td><i>K</i><sub>p</sub></td><td class="r">' + nf(M.Kp,2) + ' (t/h)/%</td><td>Capacidade/100: cada 1 % de velocidade acrescenta ' + nf(M.Kp,1) + ' t/h.</td></tr>' +
+    '<tr><td><i>τ</i></td><td class="r">' + nf(M.tau,1) + ' s</td><td>Rampa do inversor e acomodação do minério no alimentador.</td></tr>' +
+    '<tr><td><i>θ</i></td><td class="r">' + nf(M.theta,1) + ' s</td><td>Transporte do minério até a balança, <i>L</i>/<i>v</i>.</td></tr>' +
+    '<tr><td><i>K</i><sub>d</sub></td><td class="r">' + nf(M.Kd,1) + ' (t/h)/(t/m³)</td><td><i>Q</i><sub>0</sub>/<i>ρ</i><sub>0</sub>: alimentador volumétrico, vazão mássica proporcional à densidade.</td></tr>' +
+    '<tr><td><i>τ</i><sub>d</sub></td><td class="r">' + nf(M.taud,1) + ' s</td><td>Mistura do minério novo com o que ainda está no silo.</td></tr>' +
+    '<tr><td><i>θ</i><sub>d</sub></td><td class="r">' + nf(M.thetad,1) + ' s</td><td>Mesmo caminho até a balança, portanto igual a <i>θ</i>.</td></tr></tbody>';
+
+  // passo 4
+  const row = (lbl, f) => '<tr><td>' + lbl + '</td><td class="r">' + f(Dp) + '</td><td class="r">' + f(Dd) + '</td></tr>';
+  $('discTbl').innerHTML =
+    '<thead><tr><th></th><th class="r">VM → VP</th><th class="r">LD → VP</th></tr></thead><tbody>' +
+    row('Atraso inteiro <i>d</i> (amostras)', D => nf(D.d,0)) +
+    row('Atraso fracionário <i>θ</i>′', D => nf(D.thp,3) + ' s') +
+    row('Polo <i>a</i>', D => nf(D.a,5)) +
+    row('<i>b</i><sub>1</sub>', D => nf(D.b1,5)) +
+    row('<i>b</i><sub>2</sub>', D => nf(D.b2,5)) +
+    row('<i>K</i>·<i>b</i><sub>1</sub>', D => nfs(D.c1,4)) +
+    row('<i>K</i>·<i>b</i><sub>2</sub>', D => nfs(D.c2,4)) +
+    row('Ganho estático <i>K</i>(<i>b</i><sub>1</sub>+<i>b</i><sub>2</sub>)/(1−<i>a</i>)', D => nfs((D.c1 + D.c2) / (1 - D.a), 2)) +
+    '</tbody>';
+  const gz = (name, D) => {
+    const num = Math.abs(D.b2) < 1e-12
+      ? '<span class="n">' + nfs(D.c1,4) + '</span> z' + sup('−' + (D.d + 1))
+      : 'z' + sup('−' + (D.d + 1)) + ' (<span class="n">' + nfs(D.c1,4) + '</span> ' + signed(D.c2,4) + ' z' + sup('−1') + ')';
+    return '<div class="eq"><span>' + name + ' = ' + frac(num, '1 − <span class="n">' + nf(D.a,5) + '</span> z' + sup('−1')) + '</span></div>';
+  };
+  const de = (y, x, D) => {
+    let s = 'Δ' + y + '(k) = ' + nf(D.a,5) + ' Δ' + y + '(k−1) ' + signed(D.c1,4) + ' Δ' + x + '(k−' + (D.d + 1) + ')';
+    if (Math.abs(D.b2) > 1e-12) s += ' ' + signed(D.c2,4) + ' Δ' + x + '(k−' + (D.d + 2) + ')';
+    return '<div>' + s + '</div>';
+  };
+  $('discEq').innerHTML = gz('G<sub>p</sub>(z)', Dp) + gz('G<sub>d</sub>(z)', Dd) +
+    '<div class="diffeq">' + de('y<sub>u</sub>', 'u', Dp) + de('y<sub>d</sub>', 'ρ', Dd) + '</div>';
+}
+
+function renderResults(){
+  const box = $('results');
+  const settled = (tStep, th, ta) => (P.dur - tStep) >= th + 5 * ta;
+  let h = '<h3>Resultado do teste</h3>';
+  const lines = [];
+  if (P.vmOn) lines.push('Degrau de ' + signed(P.du,1) + ' % na VM em <i>t</i> = ' + nf(R.tUa,1) + ' s: a balança começa a reagir em <i>t</i> ≈ ' + nf(R.tUa + M.theta,1) + ' s e a VP tende a ' + nf(M.Q0 + R.Au,1) + ' t/h (variação de ' + signed(R.Au,1) + ' t/h).');
+  if (P.ldOn) lines.push('Degrau de ' + signed(P.drho,2) + ' t/m³ na LD em <i>t</i> = ' + nf(R.tDa,1) + ' s: efeito de ' + signed(R.Ad,1) + ' t/h na VP a partir de <i>t</i> ≈ ' + nf(R.tDa + M.thetad,1) + ' s, sem nenhuma ação na VM.');
+  if (!lines.length) lines.push('Nenhum degrau ativo: a VP fica no ponto de operação, só com o ruído da balança.');
+  if (P.vmOn && (P.u0 + P.du > 100 || P.u0 + P.du < 0)) lines.push('<span style="color:var(--warn)">Atenção: <i>u</i><sub>0</sub> + Δ<i>u</i> sai de 0 a 100 %. No processo real o inversor saturaria; o modelo linear não representa isso.</span>');
+  if (P.vmOn && Math.round(P.tU / P.T) * P.T !== P.tU) lines.push('O instante do degrau na VM foi arredondado para o instante de amostragem mais próximo (' + nf(R.tUa,2) + ' s).');
+  if (P.ldOn && Math.round(P.tD / P.T) * P.T !== P.tD) lines.push('O instante do degrau na LD foi arredondado para o instante de amostragem mais próximo (' + nf(R.tDa,2) + ' s).');
+  h += lines.map(l => '<p class="small" style="margin:.25rem 0">' + l + '</p>').join('');
+
+  const idU = P.vmOn ? identify(R.yu, R.kU, P.du) : null;
+  const idD = P.ldOn ? identify(R.yd, R.kD, P.drho) : null;
+  if (idU || idD) {
+    h += '<h3>Parâmetros recuperados da resposta discreta</h3><p class="small muted" style="margin:.2rem 0">Método de Smith sobre as amostras sem ruído: <i>τ</i> = 1,5 (<i>t</i><sub>63,2%</sub> − <i>t</i><sub>28,3%</sub>) e <i>θ</i> = <i>t</i><sub>63,2%</sub> − <i>τ</i>.</p>';
+    h += '<div class="tbl-wrap"><table><thead><tr><th>Parâmetro</th><th class="r">Modelo</th><th class="r">Identificado</th></tr></thead><tbody>';
+    if (idU) {
+      h += '<tr><td><i>K</i><sub>p</sub> (t/h)/%</td><td class="r">' + nf(M.Kp,3) + '</td><td class="r">' + nf(idU.K,3) + '</td></tr>' +
+           '<tr><td><i>θ</i> (s)</td><td class="r">' + nf(M.theta,2) + '</td><td class="r">' + nf(idU.theta,2) + '</td></tr>' +
+           '<tr><td><i>τ</i> (s)</td><td class="r">' + nf(M.tau,2) + '</td><td class="r">' + nf(idU.tau,2) + '</td></tr>';
+    }
+    if (idD) {
+      h += '<tr><td><i>K</i><sub>d</sub> (t/h)/(t/m³)</td><td class="r">' + nf(M.Kd,2) + '</td><td class="r">' + nf(idD.K,2) + '</td></tr>' +
+           '<tr><td><i>θ</i><sub>d</sub> (s)</td><td class="r">' + nf(M.thetad,2) + '</td><td class="r">' + nf(idD.theta,2) + '</td></tr>' +
+           '<tr><td><i>τ</i><sub>d</sub> (s)</td><td class="r">' + nf(M.taud,2) + '</td><td class="r">' + nf(idD.tau,2) + '</td></tr>';
+    }
+    h += '</tbody></table></div>';
+    const warnU = P.vmOn && !settled(R.tUa, M.theta, M.tau), warnD = P.ldOn && !settled(R.tDa, M.thetad, M.taud);
+    if (warnU || warnD) h += '<p class="note" style="color:var(--warn)">A resposta ainda não acomodou até o fim do teste (menos de θ + 5τ após o degrau), então o ganho identificado fica subestimado. Aumente a duração.</p>';
+    else h += '<p class="note">Pequenas diferenças vêm da interpolação linear entre amostras; elas crescem quando <i>T</i> aumenta.</p>';
+  }
+  h += '<p class="note">Validação da discretização: maior diferença entre o modelo discreto e o contínuo nos instantes <i>kT</i> = ' + (R.errMax < 1e-6 ? '0 t/h (as respostas coincidem nas amostras, como esperado com ZOH).' : nf(R.errMax,6) + ' t/h.') + '</p>';
+  box.innerHTML = h;
+}
+
+/* ---------- gráficos ---------- */
+function makeCharts(){
+  if (typeof Chart === 'undefined') {
+    $('chVP').parentElement.innerHTML = '<div class="chart-msg">Os gráficos não carregaram (biblioteca Chart.js indisponível). A simulação e a animação continuam funcionando.</div>';
+    $('chIN').parentElement.style.display = 'none';
+    return;
+  }
+  Chart.defaults.font.family = '"Barlow", system-ui, sans-serif';
+  Chart.defaults.font.size = 12;
+  const tip = {callbacks: {title: it => 't = ' + nf(it[0].parsed.x, 2) + ' s', label: c => c.dataset.label + ': ' + nf(c.parsed.y, c.dataset._dec ?? 1)}};
+  const base = {animation: false, responsive: true, maintainAspectRatio: false, parsing: false, normalized: true, locale: 'pt-BR',
+    interaction: {mode: 'nearest', axis: 'x', intersect: false},
+    plugins: {legend: {position: 'top', align: 'start', labels: {boxWidth: 18, boxHeight: 2}}, tooltip: tip}};
+  chVP = new Chart($('chVP'), {type: 'line', data: {datasets: [
+      {label: 'VP medida pela balança (discreta)', data: [], stepped: true, borderWidth: 1.8, pointRadius: 0, _dec: 1},
+      {label: 'Processo contínuo sem ruído', data: [], borderWidth: 1.5, borderDash: [5, 4], pointRadius: 0, _dec: 1}]},
+    options: Object.assign({}, base, {scales: {x: {type: 'linear', min: 0, max: 100, title: {display: true, text: 'Tempo (s)'}}, y: {title: {display: true, text: 'Vazão (t/h)'}}}})});
+  chIN = new Chart($('chIN'), {type: 'line', data: {datasets: [
+      {label: 'VM (%)', data: [], stepped: true, borderWidth: 1.8, pointRadius: 0, yAxisID: 'yU', _dec: 1},
+      {label: 'LD (t/m³)', data: [], stepped: true, borderWidth: 1.8, pointRadius: 0, yAxisID: 'yR', _dec: 2}]},
+    options: Object.assign({}, base, {scales: {x: {type: 'linear', min: 0, max: 100, title: {display: false}},
+      yU: {position: 'left', title: {display: true, text: 'VM (%)'}}, yR: {position: 'right', grid: {drawOnChartArea: false}, title: {display: true, text: 'LD (t/m³)'}}}})});
+  themeCharts();
+}
+function themeCharts(){
+  if (!chVP) return;
+  Chart.defaults.color = C['ink-2'];
+  [chVP, chIN].forEach(ch => {
+    Object.values(ch.options.scales).forEach(s => { s.grid = Object.assign(s.grid || {}, {color: C.line}); s.border = {color: C.line}; s.ticks = Object.assign(s.ticks || {}, {color: C['ink-2']}); if (s.title) s.title.color = C['ink-2']; });
+    ch.options.plugins.legend.labels.color = C.ink;
+  });
+  chVP.data.datasets[0].borderColor = C.ore; chVP.data.datasets[0].backgroundColor = C.ore;
+  chVP.data.datasets[1].borderColor = C.ref; chVP.data.datasets[1].backgroundColor = C.ref;
+  chIN.data.datasets[0].borderColor = C.steel; chIN.data.datasets[0].backgroundColor = C.steel;
+  chIN.data.datasets[1].borderColor = C.olive; chIN.data.datasets[1].backgroundColor = C.olive;
+  chVP.update('none'); chIN.update('none');
+}
+function rangePad(lo, hi, pad, minSpan){
+  if (hi - lo < minSpan) { const c = (hi + lo) / 2; lo = c - minSpan / 2; hi = c + minSpan / 2; }
+  const p = (hi - lo) * pad; lo -= p; hi += p;
+  const raw = (hi - lo) / 5, mag = Math.pow(10, Math.floor(Math.log10(raw))), st = [1, 2, 2.5, 5, 10].map(m => m * mag).find(v => v >= raw);
+  return [Math.floor(lo / st) * st, Math.ceil(hi / st) * st];
+}
+function chartScales(){
+  if (!chVP) return;
+  chVP.options.scales.x.max = P.dur; chIN.options.scales.x.max = P.dur;
+  const [y0, y1] = rangePad(R.ymin, R.ymax, 0.08, Math.max(20, M.Q0 * 0.05));
+  chVP.options.scales.y.min = y0; chVP.options.scales.y.max = y1;
+  let umin = Math.min(...R.u), umax = Math.max(...R.u); const [u0, u1] = rangePad(umin, umax, 0.15, 4);
+  chIN.options.scales.yU.min = u0; chIN.options.scales.yU.max = u1;
+  let rmin = Math.min(...R.rho), rmax = Math.max(...R.rho); const [r0, r1] = rangePad(rmin, rmax, 0.15, 0.1);
+  chIN.options.scales.yR.min = r0; chIN.options.scales.yR.max = r1;
+  const dense = R.N <= 160;
+  chVP.data.datasets[0].pointRadius = dense ? 2 : 0;
+}
+function updateCharts(){
+  if (!chVP || !R) return;
+  const kmax = Math.min(R.N - 1, Math.floor(tp / R.T + 1e-9));
+  chVP.data.datasets[0].data = R.ptsY.slice(0, kmax + 1);
+  let ic = R.ptsC.length; if (tp < P.dur) { ic = 0; while (ic < R.ptsC.length && R.ptsC[ic].x <= tp) ic++; }
+  chVP.data.datasets[1].data = R.ptsC.slice(0, ic);
+  chIN.data.datasets[0].data = R.ptsU.slice(0, kmax + 1);
+  chIN.data.datasets[1].data = R.ptsR.slice(0, kmax + 1);
+  chVP.update('none'); chIN.update('none');
+  chartTpDrawn = tp;
+}
+
+/* ---------- leituras e animação da correia ---------- */
+let roCache = {};
+function setRO(id, html){ if (roCache[id] !== html) { $(id).innerHTML = html; roCache[id] = html; } }
+function updateReadouts(){
+  if (!R) return;
+  const k = Math.min(R.N - 1, Math.max(0, Math.floor(tp / R.T + 1e-9)));
+  setRO('roT', nf(tp,1) + '<small>s</small>');
+  setRO('roU', nf(R.u[k],1) + '<small>%</small>');
+  setRO('roR', nf(R.rho[k],2) + '<small>t/m³</small>');
+  setRO('roY', nf(R.ym[k],1) + '<small>t/h</small>');
+}
+function hash(n){ const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); }
+
+function drawBelt(){
+  const cv = $('belt'); const ctx = cv.getContext('2d');
+  const dpr = window.devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
+  if (!W || !H) return;
+  if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
+  if (!R || !(P.L > 0)) return;
+  const yB = Math.round(H * 0.6), r = 9;
+  const xF = Math.max(98, W * 0.19), xS = W - Math.max(86, W * 0.15), xT = xF - 30, xH = W - 24;
+  const pxm = (xS - xF) / P.L;
+  const Qref = Math.max(R.ymax, 1) * 1.3, Hmax = Math.min(46, H * 0.2);
+  const k = Math.min(R.N - 1, Math.max(0, Math.floor(tp / R.T + 1e-9)));
+  const loadAt = xm => R.Qc(tp + (P.L - xm) / P.v);
+  const hAt = xm => Math.max(0, Math.min(Hmax * 1.15, loadAt(xm) / Qref * Hmax));
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  ctx.font = '500 12px Barlow, system-ui, sans-serif';
+
+  // silo
+  const hc = xF - 40, top = 26, bot = yB - 60, tw = 44, bw = 15;
+  ctx.fillStyle = C.ore;
+  const fillTop = top + 14, wf = tw - (tw - bw) * (fillTop - top) / (bot - top);
+  ctx.beginPath(); ctx.moveTo(hc - wf + 2, fillTop); ctx.quadraticCurveTo(hc, fillTop - 10, hc + wf - 2, fillTop);
+  ctx.lineTo(hc + bw - 2, bot); ctx.lineTo(hc - bw + 2, bot); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = C.metal; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(hc - tw, top); ctx.lineTo(hc - bw, bot); ctx.moveTo(hc + tw, top); ctx.lineTo(hc + bw, bot); ctx.stroke();
+  ctx.fillStyle = C['ink-2']; ctx.textAlign = 'center'; ctx.fillText('Silo', hc, 16);
+
+  // alimentador
+  const yFd = yB - 44, xA0 = hc - 30;
+  ctx.strokeStyle = C.steel; ctx.lineWidth = 5;
+  ctx.beginPath(); ctx.moveTo(xA0, yFd); ctx.lineTo(xF, yFd); ctx.stroke();
+  ctx.fillStyle = C.steel; [xA0, xF].forEach(x => { ctx.beginPath(); ctx.arc(x, yFd + 4, 4.5, 0, Math.PI * 2); ctx.fill(); });
+  ctx.fillStyle = C.steel; ctx.textAlign = 'left'; ctx.font = '600 12px Barlow, system-ui, sans-serif';
+  ctx.fillText('Alimentador (VM)', 6, yB + 2 * r + 26);
+  ctx.font = '500 12px Barlow, system-ui, sans-serif';
+
+  // jato de minério caindo do alimentador
+  const q0 = R.Qc(tp + P.L / P.v), wj = 2 + 9 * Math.max(0, q0) / Qref;
+  ctx.fillStyle = C.ore;
+  ctx.beginPath(); ctx.moveTo(xF - 1, yFd - 2); ctx.quadraticCurveTo(xF + 6, yFd + 6, xF + 6, yB - hAt(0) + 2);
+  ctx.lineTo(xF + 6 + wj, yB - hAt(0) + 2); ctx.quadraticCurveTo(xF + 6 + wj, yFd + 2, xF + 2 + wj * 0.6, yFd - 4); ctx.closePath(); ctx.fill();
+
+  // roletes
+  ctx.fillStyle = C.metal;
+  for (let x = xT + 26; x < xH - 18; x += 30) { ctx.beginPath(); ctx.arc(x, yB + 5, 3.5, 0, Math.PI * 2); ctx.fill(); }
+  // correia (ida e retorno) e tambores
+  ctx.strokeStyle = C.belt; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.moveTo(xT, yB); ctx.lineTo(xH, yB); ctx.moveTo(xT, yB + 2 * r); ctx.lineTo(xH, yB + 2 * r); ctx.stroke();
+  ctx.lineWidth = 2.5; ctx.strokeStyle = C.metal; ctx.fillStyle = C.panel;
+  [xT, xH].forEach(x => { ctx.beginPath(); ctx.arc(x, yB + r, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    const ang = beltPos / (r / pxm); ctx.beginPath(); ctx.moveTo(x, yB + r); ctx.lineTo(x + Math.cos(ang) * r * 0.8, yB + r + Math.sin(ang) * r * 0.8); ctx.stroke(); });
+
+  // perfil de carga sobre a correia
+  ctx.fillStyle = C.ore;
+  ctx.beginPath(); ctx.moveTo(xF + 4, yB - 2);
+  for (let px = xF + 4; px <= xH - 6; px += 2) ctx.lineTo(px, yB - 2 - hAt((px - xF) / pxm));
+  ctx.lineTo(xH - 6, yB - 2); ctx.closePath(); ctx.fill();
+  // pedras (texturas que andam com a correia)
+  const sp = 5 / pxm, shift = ((beltPos % sp) + sp) % sp, base = Math.floor(beltPos / sp);
+  const n = Math.ceil((xH - xF) / pxm / sp) + 1;
+  ctx.fillStyle = C['ore-2'];
+  for (let i = 0; i < n; i++) {
+    const xm = i * sp + shift, px = xF + 4 + xm * pxm; if (px > xH - 8) break;
+    const h = hAt(xm); if (h < 4) continue;
+    const j = i - base;
+    for (let s = 0; s < 2; s++) {
+      const hh = hash(j * 2 + s);
+      ctx.beginPath(); ctx.arc(px + (hash(j * 7 + s) - 0.5) * 3, yB - 3 - hh * (h - 3), 1 + hash(j * 3 + s) * 1.4, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+
+  // balança
+  ctx.fillStyle = C.safety;
+  ctx.beginPath(); ctx.moveTo(xS, yB + 2); ctx.lineTo(xS - 7, yB + 12); ctx.lineTo(xS + 7, yB + 12); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = C.safety; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(xS, yB + 12); ctx.lineTo(xS, yB + 2 * r + 12); ctx.stroke();
+  const bwid = 92; ctx.fillRect(xS - bwid / 2, yB + 2 * r + 12, bwid, 22);
+  ctx.fillStyle = '#1C2226'; ctx.textAlign = 'center'; ctx.font = '600 12px Barlow, system-ui, sans-serif';
+  ctx.fillText('WIT-101 (VP)', xS, yB + 2 * r + 27);
+
+  // cota L
+  const yd = H - 14; ctx.strokeStyle = C['ink-2']; ctx.fillStyle = C['ink-2']; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(xF, yd); ctx.lineTo(xS - bwid / 2 - 6, yd); ctx.moveTo(xF, yd - 5); ctx.lineTo(xF, yd + 5); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(xS - bwid / 2 - 6, yd); ctx.lineTo(xS - bwid / 2 - 12, yd - 4); ctx.lineTo(xS - bwid / 2 - 12, yd + 4); ctx.closePath(); ctx.fill();
+  ctx.font = '500 12px Barlow, system-ui, sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('L = ' + nf(P.L,0) + ' m, θ = L/v = ' + nf(M.theta,1) + ' s', (xF + xS - bwid / 2) / 2, yd - 6);
+  // densidade no silo
+  ctx.textAlign = 'left'; ctx.fillStyle = C.olive; ctx.font = '600 12px Barlow, system-ui, sans-serif';
+  ctx.fillText('ρ = ' + nf(R.rho[k],2) + ' t/m³ (LD)', hc + tw + 8, top + 18);
+}
+
+function loop(ts){
+  if (playing) {
+    if (lastTs != null) {
+      const dt = Math.min(0.1, (ts - lastTs) / 1000) * speedVal();
+      tp += dt; beltPos += dt * P.v;
+      if (tp >= P.dur) { tp = P.dur; playing = false; syncButtons(); }
+    }
+    lastTs = ts;
+  } else lastTs = null;
+  drawBelt(); updateReadouts();
+  if (tp !== chartTpDrawn && (ts - lastChartTs > 60 || !playing)) { updateCharts(); lastChartTs = ts; }
+  requestAnimationFrame(loop);
+}
+function speedVal(){ const v = parseFloat($('speed').value); return Number.isFinite(v) ? v : 10; }
+function syncButtons(){
+  $('pause').textContent = playing ? 'Pausar' : (tp > 0 && tp < P.dur ? 'Continuar' : 'Pausar');
+  $('pause').disabled = !playing && !(tp > 0 && tp < P.dur);
+}
+
+/* ---------- ciclo principal ---------- */
+function recompute(newNoise){
+  read();
+  const errs = validate();
+  const eb = $('errors');
+  if (errs.length) { eb.innerHTML = errs.join('<br>'); eb.classList.add('show'); return false; }
+  eb.classList.remove('show');
+  $('fsVM').querySelectorAll('.inp input').forEach(i => i.disabled = !P.vmOn);
+  $('fsLD').querySelectorAll('.inp input').forEach(i => i.disabled = !P.ldOn);
+  M = model(); SR = sampling();
+  Dp = discretize(M.Kp, M.tau, M.theta, P.T);
+  Dd = discretize(M.Kd, M.taud, M.thetad, P.T);
+  const wasFull = !playing && tp >= prevDur - 1e-9;
+  simulate(newNoise);
+  renderSteps(); renderResults(); chartScales();
+  if (wasFull) tp = P.dur;
+  if (tp > P.dur) tp = P.dur;
+  prevDur = P.dur;
+  chartTpDrawn = -2; updateCharts(); syncButtons();
+  return true;
+}
+
+function preset(kind){
+  read();
+  const theta = P.L / P.v, tset = theta + 5 * Math.max(P.tau, P.taud);
+  const r10 = x => Math.ceil(x / 10) * 10;
+  $('vmOn').checked = kind !== 'ld'; $('ldOn').checked = kind !== 'vm';
+  if (kind === 'vm') { $('du').value = 10; $('tU').value = 10; $('dur').value = r10(10 + tset + 10); }
+  if (kind === 'ld') { $('drho').value = -0.2; $('tD').value = 10; $('dur').value = r10(10 + tset + 10); }
+  if (kind === 'both') { $('du').value = 10; $('tU').value = 10; const t2 = r10(10 + tset + 5); $('drho').value = -0.2; $('tD').value = t2; $('dur').value = r10(t2 + tset + 10); }
+  document.querySelectorAll('[data-preset]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.preset === kind)));
+  playing = false; if (recompute(true)) { tp = P.dur; chartTpDrawn = -2; updateCharts(); syncButtons(); }
+}
+
+/* eventos */
+ids.forEach(id => $(id).addEventListener('input', () => { if (['du','tU','drho','tD'].includes(id)) clearPreset(); recompute(false); }));
+['vmOn','ldOn'].forEach(id => $(id).addEventListener('change', () => { clearPreset(); recompute(false); }));
+function clearPreset(){ document.querySelectorAll('[data-preset]').forEach(b => b.setAttribute('aria-pressed', 'false')); }
+$('Tslider').addEventListener('input', e => { $('T').value = e.target.value; recompute(false); });
+$('useSuggested').addEventListener('click', () => { $('T').value = +SR.Tsug.toPrecision(6); recompute(false); });
+document.querySelectorAll('[data-preset]').forEach(b => b.addEventListener('click', () => preset(b.dataset.preset)));
+$('run').addEventListener('click', () => {
+  if (!recompute(true)) return;
+  if (speedVal() === 0) { tp = P.dur; playing = false; }
+  else { tp = 0; playing = true; }
+  chartTpDrawn = -2; updateCharts(); syncButtons();
+});
+$('pause').addEventListener('click', () => { if (playing) playing = false; else if (tp < P.dur) playing = true; syncButtons(); });
+$('reset').addEventListener('click', () => { playing = false; tp = 0; beltPos = 0; chartTpDrawn = -2; updateCharts(); syncButtons(); });
+if (window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { readColors(); themeCharts(); });
+window.addEventListener('resize', drawBelt);
+
+/* início */
+readColors();
+makeCharts();
+if (reduceMotion) $('speed').value = '0';
+recompute(true);
+tp = P.dur; updateCharts(); syncButtons();
+requestAnimationFrame(loop);
+})();
+</script>
 </body>
 </html>
