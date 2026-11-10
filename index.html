@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Simulador digital: vazão de minério em correia transportadora</title>
+<title>Simulador Digital: Vazão de Minério em Correia Transportadora</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
@@ -41,8 +41,7 @@ header p{margin:0;color:var(--ink-2);font-size:1.05rem}
 @media (min-width:1120px){.layout{grid-template-columns:minmax(380px,.82fr) minmax(0,1.18fr);align-items:start}}
 .col{display:flex;flex-direction:column;gap:18px;min-width:0}
 .step{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:20px clamp(16px,2vw,24px)}
-.step>h2{display:flex;gap:12px;align-items:center;font-family:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;font-weight:700;font-size:1.55rem;line-height:1.1;margin:0 0 .8rem}
-.num{flex:none;display:inline-grid;place-items:center;width:1.65em;height:1.65em;border-radius:3px;background:var(--safety);color:#1C2226;font-size:1.05rem}
+.step>h2{display:flex;gap:12px;align-items:center;font-family:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;font-weight:700;font-size:1.55rem;line-height:1.1;margin:0 0 .8rem;color:var(--ink)}
 .step p{margin:.3rem 0 .8rem;max-width:68ch}
 .muted{color:var(--ink-2)}
 small,.small{font-size:.875rem}
@@ -139,27 +138,26 @@ canvas#belt{display:block;width:100%;height:230px}
 <body>
 <div class="wrap">
 <header>
-  <h1>Vazão de minério na correia transportadora</h1>
-  <p>Simulador digital de um processo de primeira ordem com tempo morto, discretizado com segurador de ordem zero. Ajuste os dados à esquerda e rode os testes em degrau à direita: tudo é recalculado na hora.</p>
+  <h1>Vazão de Minério na Correia Transportadora</h1>
+  <p>Simulador digital de um processo de primeira ordem com tempo morto (FOPDT), discretizado com segurador de ordem zero (ZOH).</p>
 </header>
 
 <div class="layout">
 <div class="col">
 
-  <!-- PASSO 1 -->
-  <section class="step" aria-labelledby="h1s">
-    <h2 id="h1s"><span class="num">1</span>Processo físico</h2>
-    <p>Um silo descarrega minério sobre um alimentador de correia acionado por inversor de frequência. O alimentador despeja o material na correia transportadora, que o leva até uma balança integradora instalada a uma distância <i>L</i>.</p>
+  <!-- PARÂMETROS DO PROCESSO FÍSICO -->
+  <section class="step">
+    <h2>Processo Físico</h2>
     <div class="tags">
-      <div class="tag c-vp"><b>VP</b><div><strong>Vazão mássica de minério (t/h)</strong>, medida pela balança integradora WIT-101 sobre a correia.</div></div>
-      <div class="tag c-vm"><b>VM</b><div><strong>Velocidade do alimentador (%)</strong>, sinal de 0 a 100 % enviado ao inversor SC-101. Mais velocidade, mais volume de minério retirado do silo.</div></div>
-      <div class="tag c-ld"><b>LD</b><div><strong>Densidade aparente do minério (t/m³)</strong>. Muda com umidade, granulometria e troca de pilha; como o alimentador é volumétrico, altera a vazão mássica sem que a VM mude.</div></div>
+      <div class="tag c-vp"><b>VP</b><div><strong>Vazão mássica de minério (t/h)</strong>, medida pela balança integradora WIT-101.</div></div>
+      <div class="tag c-vm"><b>VM</b><div><strong>Velocidade do alimentador (%)</strong>, sinal enviado ao inversor SC-101.</div></div>
+      <div class="tag c-ld"><b>LD</b><div><strong>Densidade aparente do minério (t/m³)</strong>, perturbação de carga no silo.</div></div>
     </div>
     <div class="fields">
       <label class="field"><span>Distância alimentador até balança, <i>L</i></span><span class="inp"><input id="L" type="number" value="40" min="1" step="1"><em>m</em></span></label>
       <label class="field"><span>Velocidade da correia, <i>v</i></span><span class="inp"><input id="v" type="number" value="2.5" min="0.1" step="0.1"><em>m/s</em></span></label>
       <label class="field"><span>Capacidade do alimentador a 100 %</span><span class="inp"><input id="Qmax" type="number" value="1200" min="1" step="50"><em>t/h</em></span></label>
-      <label class="field"><span>Constante de tempo do alimentador e inversor, <i>τ</i></span><span class="inp"><input id="tau" type="number" value="6" min="0.1" step="0.5"><em>s</em></span></label>
+      <label class="field"><span>Constante de tempo do alimentador/inversor, <i>τ</i></span><span class="inp"><input id="tau" type="number" value="6" min="0.1" step="0.5"><em>s</em></span></label>
       <label class="field"><span>Constante de tempo da densidade no silo, <i>τ</i><sub>d</sub></span><span class="inp"><input id="taud" type="number" value="8" min="0.1" step="0.5"><em>s</em></span></label>
       <label class="field"><span>Velocidade no ponto de operação, <i>u</i><sub>0</sub></span><span class="inp"><input id="u0" type="number" value="50" min="0" max="100" step="1"><em>%</em></span></label>
       <label class="field"><span>Densidade no ponto de operação, <i>ρ</i><sub>0</sub></span><span class="inp"><input id="rho0" type="number" value="2.4" min="0.1" step="0.05"><em>t/m³</em></span></label>
@@ -167,10 +165,9 @@ canvas#belt{display:block;width:100%;height:230px}
     <div class="derived" id="derived1"></div>
   </section>
 
-  <!-- PASSO 2 -->
-  <section class="step" aria-labelledby="h2s">
-    <h2 id="h2s"><span class="num">2</span>Período de amostragem</h2>
-    <p>Critério adotado: de 4 a 20 amostras por constante de tempo, usando a menor delas (<i>τ</i><sub>min</sub>/20 ≤ <i>T</i> ≤ <i>τ</i><sub>min</sub>/4). Dentro da faixa, prefira um <i>T</i> que divida o tempo morto em um número inteiro de amostras.</p>
+  <!-- PARÂMETROS DE AMOSTRAGEM -->
+  <section class="step">
+    <h2>Período de Amostragem</h2>
     <div id="rangeText" class="small"></div>
     <div class="range-bar" aria-hidden="true">
       <div class="range-track"></div><div class="range-ok" id="rangeOk"></div><div class="range-mark" id="rangeMark"></div>
@@ -185,30 +182,28 @@ canvas#belt{display:block;width:100%;height:230px}
     <div class="kpis" id="Tkpis"></div>
   </section>
 
-  <!-- PASSO 3 -->
-  <section class="step" aria-labelledby="h3s">
-    <h2 id="h3s"><span class="num">3</span>Modelo de primeira ordem com tempo morto</h2>
-    <p>Em variáveis de desvio em torno do ponto de operação, a VP responde à VM e à LD pela soma de dois modelos FOPDT:</p>
+  <!-- MODELO CONTÍNUO (FOPDT) -->
+  <section class="step">
+    <h2>Modelo Contínuo (FOPDT)</h2>
     <div id="modelEq"></div>
     <div class="tbl-wrap"><table id="modelTbl"></table></div>
   </section>
 
-  <!-- PASSO 4 -->
-  <section class="step" aria-labelledby="h4s">
-    <h2 id="h4s"><span class="num">4</span>Modelo discreto</h2>
-    <p>Com segurador de ordem zero, o tempo morto é dividido em <i>θ</i> = <i>d</i>·<i>T</i> + <i>θ</i>′ (0 ≤ <i>θ</i>′ &lt; <i>T</i>). A parte fracionária <i>θ</i>′ é tratada com a transformada Z modificada:</p>
+  <!-- MODELO DISCRETO (ZOH) -->
+  <section class="step">
+    <h2>Modelo Discreto (ZOH)</h2>
     <div class="eq"><span>a = e<sup>−T/τ</sup></span>,&nbsp;&nbsp;<span>b<sub>1</sub> = 1 − e<sup>−(T−θ′)/τ</sup></span>,&nbsp;&nbsp;<span>b<sub>2</sub> = e<sup>−(T−θ′)/τ</sup> − a</span></div>
     <div class="eq"><span>G(z) = </span><span class="frac"><span>K z<sup>−(d+1)</sup> (b<sub>1</sub> + b<sub>2</sub> z<sup>−1</sup>)</span><span>1 − a z<sup>−1</sup></span></span></div>
     <div class="tbl-wrap"><table id="discTbl"></table></div>
     <div id="discEq"></div>
-    <p class="note">Equações a diferenças em desvio. A VP simulada é <i>VP</i>(k) = <i>Q</i><sub>0</sub> + Δ<i>y</i><sub>u</sub>(k) + Δ<i>y</i><sub>d</sub>(k) + ruído da balança.</p>
+    <p class="note">Equações a diferenças em desvio. <i>VP</i>(k) = <i>Q</i><sub>0</sub> + Δ<i>y</i><sub>u</sub>(k) + Δ<i>y</i><sub>d</sub>(k) + ruído.</p>
   </section>
 </div>
 
 <div class="col">
-  <!-- PASSO 5 -->
-  <section class="step" aria-labelledby="h5s">
-    <h2 id="h5s"><span class="num">5</span>Testes com entrada em degrau</h2>
+  <!-- SIMULAÇÃO E ENSAIOS EM DEGRAU -->
+  <section class="step">
+    <h2>Simulação e Ensaios ao Degrau</h2>
     <div class="errors" id="errors" role="alert"></div>
     <div class="presets" role="group" aria-label="Testes prontos">
       <button class="seg" type="button" data-preset="vm" aria-pressed="false">Degrau na VM</button>
@@ -233,8 +228,8 @@ canvas#belt{display:block;width:100%;height:230px}
     </div>
     <div class="controls">
       <label class="field"><span>Duração do teste</span><span class="inp"><input id="dur" type="number" value="160" min="1" step="10"><em>s</em></span></label>
-      <label class="field"><span>Ruído da balança (desvio padrão)</span><span class="inp"><input id="noise" type="number" value="3" min="0" step="1"><em>t/h</em></span></label>
-      <label class="field"><span>Reprodução</span>
+      <label class="field"><span>Ruído da balança (σ)</span><span class="inp"><input id="noise" type="number" value="3" min="0" step="1"><em>t/h</em></span></label>
+      <label class="field"><span>Velocidade de Execução</span>
         <select id="speed"><option value="1">Tempo real</option><option value="5">5× mais rápido</option><option value="10" selected>10× mais rápido</option><option value="30">30× mais rápido</option><option value="0">Instantânea</option></select>
       </label>
     </div>
@@ -302,7 +297,7 @@ function validate(){
   return e;
 }
 
-/* ---------- passos 1 e 3: modelo ---------- */
+/* ---------- modelo contínuo ---------- */
 function model(){
   const theta = P.L / P.v;
   const Kp = P.Qmax / 100;
@@ -311,7 +306,7 @@ function model(){
   return {theta, thetad: theta, Kp, Kd, Q0, tau: P.tau, taud: P.taud};
 }
 
-/* ---------- passo 2: amostragem ---------- */
+/* ---------- amostragem ---------- */
 function sampling(){
   const tmin = Math.min(M.tau, M.taud);
   const Tmin = tmin / 20, Tmax = tmin / 4, target = tmin / 10;
@@ -324,7 +319,7 @@ function sampling(){
   return {Tmin, Tmax, Tsug: best, tmin, divides: divides.length > 0};
 }
 
-/* ---------- passo 4: discretização (ZOH + Z modificada) ---------- */
+/* ---------- discretização (ZOH + Z modificada) ---------- */
 function discretize(K, tau, theta, T){
   let d = Math.floor(theta / T + 1e-9);
   let thp = theta - d * T;
@@ -336,7 +331,7 @@ function discretize(K, tau, theta, T){
   return {K, tau, theta, T, d, thp, a, b1, b2, c1: K * b1, c2: K * b2};
 }
 
-/* ---------- passo 5: simulação ---------- */
+/* ---------- simulação ---------- */
 function gauss(){ let u = 0, v = 0; while (u === 0) u = Math.random(); while (v === 0) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
 function stepResp(A, s, th, ta){ return s > th ? A * (1 - Math.exp(-(s - th) / ta)) : 0; }
 
@@ -359,10 +354,10 @@ function simulate(newNoise){
   const tUa = kU * T, tDa = kD * T;
   const Au = P.vmOn ? M.Kp * P.du : 0, Ad = P.ldOn ? M.Kd * P.drho : 0;
   const Qc = t => M.Q0 + stepResp(Au, t - tUa, M.theta, M.tau) + stepResp(Ad, t - tDa, M.thetad, M.taud);
-  // erro discreto x contínuo nos instantes kT
+
   let errMax = 0;
   for (let k = 0; k < N; k++) errMax = Math.max(errMax, Math.abs(M.Q0 + yu[k] + yd[k] - Qc(k * T)));
-  // pontos para os gráficos
+
   const ptsY = [], ptsU = [], ptsR = [];
   for (let k = 0; k < N; k++) { const t = k * T; ptsY.push({x: t, y: ym[k]}); ptsU.push({x: t, y: u[k]}); ptsR.push({x: t, y: rho[k]}); }
   const nC = Math.min(2000, Math.max(400, Math.ceil(P.dur / T * 4)));
@@ -391,7 +386,7 @@ function identify(arr, kStep, dIn){
   return {K: yf / dIn, tau, theta, t28, t63};
 }
 
-/* ---------- renderização dos passos ---------- */
+/* ---------- renderização ---------- */
 function frac(n, d){ return '<span class="frac"><span>' + n + '</span><span>' + d + '</span></span>'; }
 
 function renderSteps(){
@@ -399,7 +394,6 @@ function renderSteps(){
     'Tempo de transporte até a balança: <i>θ</i> = <i>L</i>/<i>v</i> = ' + nf(P.L,1) + '/' + nf(P.v,2) + ' = <b>' + nf(M.theta,1) + ' s</b>. ' +
     'Vazão no ponto de operação: <i>Q</i><sub>0</sub> = ' + nf(M.Kp,2) + ' × ' + nf(P.u0,0) + ' = <b>' + nf(M.Q0,1) + ' t/h</b>.';
 
-  // passo 2
   const Tmax = SR.Tmax, Tmin = SR.Tmin;
   const scaleMax = Math.max(Tmax * 2, P.T * 1.15, 0.5);
   const sl = $('Tslider'); sl.max = (Math.ceil(scaleMax * 20) / 20).toFixed(2);
@@ -408,7 +402,7 @@ function renderSteps(){
   $('rangeMark').style.left = pct(P.T) + '%';
   $('rangeMaxLbl').textContent = nf(parseFloat(sl.max), 2) + ' s';
   if (document.activeElement !== sl) sl.value = P.T;
-  $('rangeText').innerHTML = 'Com <i>τ</i><sub>min</sub> = ' + nf(SR.tmin,1) + ' s, a faixa é <b>' + nf(Tmin,2) + ' s ≤ <i>T</i> ≤ ' + nf(Tmax,2) + ' s</b> (verde). Sugerido: <b>' + nf(SR.Tsug,2) + ' s</b>' + (SR.divides ? ', que divide exatamente o tempo morto.' : '.');
+  $('rangeText').innerHTML = 'Com <i>τ</i><sub>min</sub> = ' + nf(SR.tmin,1) + ' s, a faixa ideal é <b>' + nf(Tmin,2) + ' s ≤ <i>T</i> ≤ ' + nf(Tmax,2) + ' s</b>. Sugerido: <b>' + nf(SR.Tsug,2) + ' s</b>' + (SR.divides ? ', que divide exatamente o tempo morto.' : '.');
   $('useSuggested').textContent = 'Usar o sugerido (' + nf(SR.Tsug,2) + ' s)';
   const st = $('Tstatus');
   const inR = P.T >= Tmin - 1e-9 && P.T <= Tmax + 1e-9;
@@ -417,15 +411,14 @@ function renderSteps(){
   st.innerHTML = inR
     ? '<i>T</i> = ' + nf(P.T,2) + ' s está dentro da faixa.' + (intDiv ? ' O tempo morto corresponde a um número inteiro de amostras.' : ' O tempo morto não é múltiplo de <i>T</i>: o modelo discreto ganha o termo <i>b</i><sub>2</sub>.')
     : (P.T > Tmax
-        ? '<i>T</i> = ' + nf(P.T,2) + ' s está acima da faixa: poucas amostras por constante de tempo, o transitório fica mal representado e o controle digital perde desempenho.'
-        : '<i>T</i> = ' + nf(P.T,2) + ' s está abaixo da faixa: amostras demais, o polo <i>a</i> fica muito perto de 1 e o modelo fica sensível a arredondamento e ruído.');
+        ? '<i>T</i> = ' + nf(P.T,2) + ' s está acima da faixa: poucas amostras por constante de tempo, transitório mal representado.'
+        : '<i>T</i> = ' + nf(P.T,2) + ' s está abaixo da faixa: amostras demais, polo <i>a</i> muito próximo de 1.');
   $('Tkpis').innerHTML =
     '<div class="kpi"><span>Amostras em τ</span><b>' + nf(M.tau / P.T,1) + '</b></div>' +
     '<div class="kpi"><span>Amostras no tempo morto</span><b>' + nf(ratio,2) + '</b></div>' +
     '<div class="kpi"><span>Frequência de amostragem</span><b>' + nf(1 / P.T,2) + ' Hz</b></div>' +
     '<div class="kpi"><span>Amostras no teste</span><b>' + nf(Math.floor(P.dur / P.T + 1e-9) + 1,0) + '</b></div>';
 
-  // passo 3
   $('modelEq').innerHTML =
     '<div class="eq"><span>G<sub>p</sub>(s) = ' + frac('ΔVP(s)', 'ΔVM(s)') + ' = ' + frac('K<sub>p</sub> e' + sup('−θs'), 'τs + 1') + ' = ' + frac('<span class="n">' + nf(M.Kp,2) + '</span> e' + sup('−' + nf(M.theta,1) + 's'), '<span class="n">' + nf(M.tau,1) + '</span>s + 1') + '</span></div>' +
     '<div class="eq"><span>G<sub>d</sub>(s) = ' + frac('ΔVP(s)', 'ΔLD(s)') + ' = ' + frac('K<sub>d</sub> e' + sup('−θ<sub>d</sub>s'), 'τ<sub>d</sub>s + 1') + ' = ' + frac('<span class="n">' + nf(M.Kd,1) + '</span> e' + sup('−' + nf(M.thetad,1) + 's'), '<span class="n">' + nf(M.taud,1) + '</span>s + 1') + '</span></div>';
@@ -438,7 +431,6 @@ function renderSteps(){
     '<tr><td><i>τ</i><sub>d</sub></td><td class="r">' + nf(M.taud,1) + ' s</td><td>Mistura do minério novo com o que ainda está no silo.</td></tr>' +
     '<tr><td><i>θ</i><sub>d</sub></td><td class="r">' + nf(M.thetad,1) + ' s</td><td>Mesmo caminho até a balança, portanto igual a <i>θ</i>.</td></tr></tbody>';
 
-  // passo 4
   const row = (lbl, f) => '<tr><td>' + lbl + '</td><td class="r">' + f(Dp) + '</td><td class="r">' + f(Dd) + '</td></tr>';
   $('discTbl').innerHTML =
     '<thead><tr><th></th><th class="r">VM → VP</th><th class="r">LD → VP</th></tr></thead><tbody>' +
@@ -570,7 +562,7 @@ function updateCharts(){
   chartTpDrawn = tp;
 }
 
-/* ---------- leituras e animação da correia ---------- */
+/* ---------- leituras e animação ---------- */
 let roCache = {};
 function setRO(id, html){ if (roCache[id] !== html) { $(id).innerHTML = html; roCache[id] = html; } }
 function updateReadouts(){
@@ -619,7 +611,7 @@ function drawBelt(){
   ctx.fillText('Alimentador (VM)', 6, yB + 2 * r + 26);
   ctx.font = '500 12px Barlow, system-ui, sans-serif';
 
-  // jato de minério caindo do alimentador
+  // jato de minério
   const q0 = R.Qc(tp + P.L / P.v), wj = 2 + 9 * Math.max(0, q0) / Qref;
   ctx.fillStyle = C.ore;
   ctx.beginPath(); ctx.moveTo(xF - 1, yFd - 2); ctx.quadraticCurveTo(xF + 6, yFd + 6, xF + 6, yB - hAt(0) + 2);
@@ -628,19 +620,21 @@ function drawBelt(){
   // roletes
   ctx.fillStyle = C.metal;
   for (let x = xT + 26; x < xH - 18; x += 30) { ctx.beginPath(); ctx.arc(x, yB + 5, 3.5, 0, Math.PI * 2); ctx.fill(); }
-  // correia (ida e retorno) e tambores
+
+  // correia e tambores
   ctx.strokeStyle = C.belt; ctx.lineWidth = 4;
   ctx.beginPath(); ctx.moveTo(xT, yB); ctx.lineTo(xH, yB); ctx.moveTo(xT, yB + 2 * r); ctx.lineTo(xH, yB + 2 * r); ctx.stroke();
   ctx.lineWidth = 2.5; ctx.strokeStyle = C.metal; ctx.fillStyle = C.panel;
   [xT, xH].forEach(x => { ctx.beginPath(); ctx.arc(x, yB + r, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     const ang = beltPos / (r / pxm); ctx.beginPath(); ctx.moveTo(x, yB + r); ctx.lineTo(x + Math.cos(ang) * r * 0.8, yB + r + Math.sin(ang) * r * 0.8); ctx.stroke(); });
 
-  // perfil de carga sobre a correia
+  // perfil de carga
   ctx.fillStyle = C.ore;
   ctx.beginPath(); ctx.moveTo(xF + 4, yB - 2);
   for (let px = xF + 4; px <= xH - 6; px += 2) ctx.lineTo(px, yB - 2 - hAt((px - xF) / pxm));
   ctx.lineTo(xH - 6, yB - 2); ctx.closePath(); ctx.fill();
-  // pedras (texturas que andam com a correia)
+
+  // textura de pedras
   const sp = 5 / pxm, shift = ((beltPos % sp) + sp) % sp, base = Math.floor(beltPos / sp);
   const n = Math.ceil((xH - xF) / pxm / sp) + 1;
   ctx.fillStyle = C['ore-2'];
