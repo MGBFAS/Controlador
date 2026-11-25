@@ -86,9 +86,9 @@ input[type=range]{width:100%;accent-color:var(--steel);margin:8px 0 2px}
 
 /* tables */
 .tbl-wrap{overflow-x:auto;margin:.6rem 0}
-table{border-collapse:collapse;width:100%;font-size:.93rem;font-variant-numeric:tabular-nums}
-th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top}
-th{font-weight:600;color:var(--ink-2);font-size:.85rem}
+table{border-collapse:collapse;width:100%;font-size:.9rem;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font-weight:600;color:var(--ink-2);font-size:.83rem}
 td.r,th.r{text-align:right;white-space:nowrap}
 tbody tr:last-child td{border-bottom:0}
 
@@ -140,7 +140,7 @@ canvas#belt{display:block;width:100%;height:220px}
 <div class="wrap">
 <header>
   <h1>Malha Fechada e Otimização: Vazão de Minério</h1>
-  <p>Implementação de Controlador PID Digital (ZOH/Trapezoidal com Anti-Windup) acoplado ao Simulador FOPDT da correia transportadora, com análise 3D da superfície de desempenho e algoritmo de otimização.</p>
+  <p>Implementação de Controlador PID Digital (ZOH/Trapezoidal com Anti-Windup) acoplado ao Simulador FOPDT da correia transportadora, com Matriz 5×5, análise 3D e algoritmo de otimização.</p>
 </header>
 
 <div class="layout">
@@ -217,7 +217,7 @@ canvas#belt{display:block;width:100%;height:220px}
   </section>
 </div>
 
-<!-- COLUNA DIREITA: SIMULAÇÃO EM MALHA FECHADA + GRÁFICO 3D + OTIMIZAÇÃO -->
+<!-- COLUNA DIREITA: SIMULAÇÃO EM MALHA FECHADA + MATRIZ 5x5 + GRÁFICO 3D + OTIMIZAÇÃO -->
 <div class="col">
 
   <!-- A) SIMULADOR DIGITAL EM MALHA FECHADA -->
@@ -273,9 +273,9 @@ canvas#belt{display:block;width:100%;height:220px}
     <div class="results" id="results"></div>
   </section>
 
-  <!-- B) OTIMIZAÇÃO E SUPERFÍCIE 3D EM TORNO DO AJUSTE CRITICAMENTE AMORTECIDO -->
+  <!-- B) OTIMIZAÇÃO, MATRIZ 5x5 E SUPERFÍCIE 3D EM TORNO DO AJUSTE CRITICAMENTE AMORTECIDO -->
   <section class="step">
-    <h2>B) Otimização e Superfície 3D de Desempenho</h2>
+    <h2>B) Otimização, Matriz 5×5 e Superfície 3D</h2>
     <p class="small">Varredura paramétrica em torno do ajuste <strong>criticamente amortecido</strong> (<i>K</i><sub>p,crit</sub>, <i>K</i><sub>i,crit</sub>) combinada com refinamento contínuo (Nelder-Mead) para minimizar o índice de desempenho escolhido.</p>
     <div class="controls">
       <label class="field"><span>Critério de Desempenho (<i>J</i>)</span>
@@ -289,8 +289,8 @@ canvas#belt{display:block;width:100%;height:220px}
       <label class="field"><span>Faixa de busca (± % do crítico)</span>
         <select id="spanPct">
           <option value="0.75">25% a 175% do crítico</option>
-          <option value="1.0" selected>10% a 200% do crítico</option>
-          <option value="1.5">10% a 250% do crítico</option>
+          <option value="1.0">10% a 200% do crítico</option>
+          <option value="1.5" selected>10% a 250% do crítico</option>
         </select>
       </label>
       <label class="field"><span>Parâmetro no Gráfico 2D</span>
@@ -304,8 +304,12 @@ canvas#belt{display:block;width:100%;height:220px}
 
     <div class="kpis" id="optKpis"></div>
 
-    <h3 style="font-family:'Barlow Condensed',sans-serif;font-size:1.25rem;margin:16px 0 4px">Superfície 3D: Eixo X = Ganho Proporcional (<i>K</i><sub>p,c</sub>) | Eixo Y = Índice <i>J</i> | Eixo Z = Ganho Integral (<i>K</i><sub>i</sub>)</h3>
-    <p class="small muted" style="margin:0">Arraste para rotacionar em 3D e use o scroll para zoom. O ponto verde marca o ajuste <b>Criticamente Amortecido</b>; a estrela dourada marca o <b>Ponto Ótimo</b>.</p>
+    <h3 style="font-family:'Barlow Condensed',sans-serif;font-size:1.25rem;margin:18px 0 4px">Matriz 5×5 do Índice de Desempenho (<i>K</i><sub>p,c</sub> × <i>K</i><sub>i</sub>)</h3>
+    <p class="small muted" style="margin:0 0 8px">A célula central <b>[3,3]</b> corresponde ao ajuste <b>Criticamente Amortecido (IMC)</b>. A célula destacada em dourado com <b>★</b> indica o <b>mínimo discreto da grade 5×5</b>.</p>
+    <div class="tbl-wrap" id="matrix5x5Box"></div>
+
+    <h3 style="font-family:'Barlow Condensed',sans-serif;font-size:1.25rem;margin:18px 0 4px">Superfície 3D: Eixo X = Ganho Proporcional (<i>K</i><sub>p,c</sub>) | Eixo Y = Índice <i>J</i> | Eixo Z = Ganho Integral (<i>K</i><sub>i</sub>)</h3>
+    <p class="small muted" style="margin:0">Arraste para rotacionar em 3D e use o scroll para zoom. O ponto verde marca o ajuste <b>Criticamente Amortecido</b>; o losango dourado marca o <b>Ponto Ótimo</b>.</p>
     <div class="plot3d-box" id="plot3d"></div>
 
     <h3 style="font-family:'Barlow Condensed',sans-serif;font-size:1.25rem;margin:18px 0 4px">Gráfico 2D do Ponto Ótimo (Corte Transversal na Direção Ótima)</h3>
@@ -398,12 +402,11 @@ function discretize(K, tau, theta, T){
 
 /* ---------- sintonia criticamente amortecida (IMC / Lambda Tuning) ---------- */
 function calcCriticallyDamped(){
-  // Para FOPDT com tempo morto dominante, lambda = tau + theta garante resposta criticamente/sobredamortecida sem overshoot
   const lambda = M.tau + M.theta;
   const Kc = M.tau / (M.Kp * (lambda + M.theta));
   const Ti = M.tau;
   const Ki = Kc / Ti;
-  const Kd_c = 0; // PI criticamente amortecido (sem kick derivativo)
+  const Kd_c = 0;
   return {Kc, Ki, Kd_c, Ti, lambda};
 }
 
@@ -427,11 +430,11 @@ function simulateClosedLoop(Kc, Ki, Kd_c, noiseArr, useNoise){
   const rho = new Float64Array(N);
   const err = new Float64Array(N);
 
-  let integ = P.u0; // bumpless initialization no ponto de operação
+  let integ = P.u0;
   let ePrev = 0;
   let dFilt = 0;
   let yPrev = M.Q0;
-  const Nf = 10; // filtro derivativo
+  const Nf = 10;
 
   for (let k = 0; k < N; k++) {
     const spk = M.Q0 + ((P.spOn && k >= kSP) ? P.dsp : 0);
@@ -439,7 +442,6 @@ function simulateClosedLoop(Kc, Ki, Kd_c, noiseArr, useNoise){
     sp[k] = spk;
     rho[k] = P.rho0 + drk;
 
-    // 1. Planta evolui com ações passadas (causalidade ZOH)
     if (k > 0) {
       const idx1 = k - 1 - Dp.d;
       const idx2 = k - 2 - Dp.d;
@@ -456,16 +458,13 @@ function simulateClosedLoop(Kc, Ki, Kd_c, noiseArr, useNoise){
     const nVal = (useNoise && noiseArr) ? P.noise * noiseArr[k] : 0;
     ym[k] = yClean[k] + nVal;
 
-    // 2. Controlador Digital PID
     const ek = sp[k] - ym[k];
-    err[k] = sp[k] - yClean[k]; // erro verdadeiro para métricas limpas
+    err[k] = sp[k] - yClean[k];
 
     let uk = P.u0;
     if (isAuto) {
       const Pterm = Kc * ek;
-      // Integração trapezoidal
       const integCand = integ + Ki * (T / 2) * (ek + ePrev);
-      // Derivativo filtrado sobre a medição (-ym) para evitar derivative kick no SP
       let Dterm = 0;
       if (Kd_c > 0 && k > 0) {
         const tauF = Kd_c / (Math.max(Kc, 1e-6) * Nf);
@@ -474,7 +473,6 @@ function simulateClosedLoop(Kc, Ki, Kd_c, noiseArr, useNoise){
         Dterm = dFilt;
       }
       const uRaw = Pterm + integCand + Dterm;
-      // Saturação do inversor (0% a 100%) com clamping anti-windup
       if (uRaw > 100) {
         uk = 100;
         if (ek < 0) integ = integCand;
@@ -511,7 +509,6 @@ function evalPerformance(sim, metric){
       const du = k > 0 ? Math.abs(sim.u[k] - sim.u[k - 1]) : 0;
       J += (t * ae * T) + 0.5 * du * M.Kp * t;
     } else {
-      // ITAE padrão
       J += t * ae * T;
     }
   }
@@ -540,7 +537,6 @@ function simulate(newNoise){
     ymax = Math.max(ymax, sim.ym[k], sim.sp[k]);
   }
 
-  // Perfil contínuo aproximado na correia para a animação
   const Qc = t => {
     const idx = Math.min(N - 1, Math.max(0, Math.round(t / T)));
     return simClean.yClean[idx];
@@ -564,7 +560,6 @@ function runOptimization(){
     Dd = discretize(M.Kd, M.taud, M.thetad, P.T);
     CRIT = calcCriticallyDamped();
   }
-  // Garante que haja pelo menos um degrau para avaliar desempenho
   const prevSP = P.spOn, prevDSP = P.dsp;
   if (!P.spOn && !P.ldOn) { P.spOn = true; P.dsp = 100; }
 
@@ -580,9 +575,8 @@ function runOptimization(){
   for (let j = 0; j < nGrid; j++) zVals.push(kiMin + (kiMax - kiMin) * j / (nGrid - 1));
 
   const objFn = (kp, ki) => {
-    if (kp <= 0 || ki < 0 || kp > kpMax * 1.5 || ki > kiMax * 1.5) return 1e12;
+    if (kp < kpMin || ki < kiMin || kp > kpMax || ki > kiMax) return 1e12;
     const s = simulateClosedLoop(kp, ki, P.Kd_c, null, false);
-    // Penaliza instabilidade / divergência
     const lastY = s.yClean[s.N - 1];
     if (!Number.isFinite(lastY) || Math.abs(lastY) > M.Qmax * 5) return 1e12;
     return evalPerformance(s, P.metric);
@@ -599,11 +593,11 @@ function runOptimization(){
     yGrid.push(row);
   }
 
-  // Refinamento Nelder-Mead 2D a partir do melhor ponto da grade
+  // Refinamento Nelder-Mead 2D restrito à malha
   let simplex = [
     {x: bestGrid.kp, y: bestGrid.ki, f: bestGrid.J},
-    {x: bestGrid.kp * 1.06, y: bestGrid.ki, f: objFn(bestGrid.kp * 1.06, bestGrid.ki)},
-    {x: bestGrid.kp, y: bestGrid.ki * 1.06, f: objFn(bestGrid.kp, bestGrid.ki * 1.06)}
+    {x: Math.min(kpMax, bestGrid.kp * 1.05), y: bestGrid.ki, f: objFn(Math.min(kpMax, bestGrid.kp * 1.05), bestGrid.ki)},
+    {x: bestGrid.kp, y: Math.min(kiMax, bestGrid.ki * 1.05), f: objFn(bestGrid.kp, Math.min(kiMax, bestGrid.ki * 1.05))}
   ];
   for (let iter = 0; iter < 60; iter++) {
     simplex.sort((a, b) => a.f - b.f);
@@ -640,9 +634,66 @@ function runOptimization(){
   renderOptimization();
 }
 
-/* ---------- renderização ---------- */
-function frac(n, d){ return '<span class="frac"><span>' + n + '</span><span>' + d + '</span></span>'; }
+/* ---------- matriz 5x5 ---------- */
+function renderMatrix5x5(){
+  const box = $('matrix5x5Box');
+  if (!box || !OPT) return;
 
+  const span = Math.min(0.85, P.spanPct);
+  const mults = [1 - span, 1 - span / 2, 1, 1 + span / 2, 1 + span];
+  const kp5 = mults.map(m => CRIT.Kc * m);
+  const ki5 = mults.map(m => CRIT.Ki * m);
+
+  const grid = [];
+  let minVal = Infinity, minI = 2, minJ = 2;
+
+  for (let j = 0; j < 5; j++) {
+    const row = [];
+    for (let i = 0; i < 5; i++) {
+      const s = simulateClosedLoop(kp5[i], ki5[j], P.Kd_c, null, false);
+      const lastY = s.yClean[s.N - 1];
+      const val = (!Number.isFinite(lastY) || Math.abs(lastY) > M.Qmax * 5)
+        ? Infinity
+        : evalPerformance(s, OPT.metric);
+      row.push(val);
+      if (val < minVal) { minVal = val; minI = i; minJ = j; }
+    }
+    grid.push(row);
+  }
+
+  let h = '<table><thead><tr><th><i>K</i><sub>i</sub> \\ <i>K</i><sub>p,c</sub></th>';
+  for (let i = 0; i < 5; i++) {
+    const tag = i === 2 ? ' <small>(Crit.)</small>' : '';
+    h += '<th class="r">' + nf(kp5[i], 5) + tag + '</th>';
+  }
+  h += '</tr></thead><tbody>';
+
+  for (let j = 0; j < 5; j++) {
+    const tagR = j === 2 ? ' <small>(Crit.)</small>' : '';
+    h += '<tr><th>' + nf(ki5[j], 5) + tagR + '</th>';
+    for (let i = 0; i < 5; i++) {
+      const val = grid[j][i];
+      const isCrit = (i === 2 && j === 2);
+      const isMin = (i === minI && j === minJ);
+      let style = '';
+      let label = Number.isFinite(val) ? nf(val, 1) : 'Instável';
+
+      if (isMin) {
+        style = 'background:rgba(233,177,0,0.22);font-weight:700;border:1.5px solid var(--safety);';
+        label += ' ★';
+      } else if (isCrit) {
+        style = 'background:rgba(47,122,74,0.18);font-weight:600;border:1px dashed var(--ok);';
+        label += ' (IMC)';
+      }
+      h += '<td class="r" style="' + style + '">' + label + '</td>';
+    }
+    h += '</tr>';
+  }
+  h += '</tbody></table>';
+  box.innerHTML = h;
+}
+
+/* ---------- renderização ---------- */
 function renderSteps(){
   $('derived1').innerHTML =
     'Tempo morto: <i>θ</i> = <i>L</i>/<i>v</i> = <b>' + nf(M.theta,1) + ' s</b> | ' +
@@ -666,7 +717,6 @@ function renderSteps(){
     ? '<i>T</i> = ' + nf(P.T,2) + ' s adequado (' + nf(M.tau / P.T,1) + ' amostras por <i>τ</i>; atraso <i>d</i> = ' + Dp.d + ' amostras).'
     : '<i>T</i> = ' + nf(P.T,2) + ' s fora da faixa recomendada.';
 
-  // Controlador
   const badge = $('modeBadge');
   if (P.ctrlMode === 'auto') {
     badge.textContent = 'MALHA FECHADA (AUTO)'; badge.className = 'badge auto';
@@ -681,7 +731,6 @@ function renderSteps(){
   $('ctrlEq').innerHTML =
     '<div class="eq"><span>u(k) = u<sub>I</sub>(k) + K<sub>p,c</sub> e(k) + u<sub>D</sub>(k), &nbsp; e(k) = SP(k) − VP(k)</span></div>';
 
-  // Tabela discreta da planta
   const row = (lbl, f) => '<tr><td>' + lbl + '</td><td class="r">' + f(Dp) + '</td><td class="r">' + f(Dd) + '</td></tr>';
   $('discTbl').innerHTML =
     '<thead><tr><th>Parâmetro ZOH</th><th class="r">VM → VP</th><th class="r">LD → VP</th></tr></thead><tbody>' +
@@ -700,7 +749,6 @@ function renderSteps(){
 
 function renderResults(){
   const box = $('results');
-  // Calcula métricas transitórias do degrau no SP
   let overshoot = 0, maxU = -Infinity, minU = Infinity;
   for (let k = 0; k < R.N; k++) {
     maxU = Math.max(maxU, R.u[k]);
@@ -740,19 +788,17 @@ function renderOptimization(){
     '<div class="kpi"><span><i>K</i><sub>p,ótimo</sub> / <i>K</i><sub>i,ótimo</sub> (Otimizado)</span><b style="color:var(--ok)">' + nf(OPT.optPt.kp,4) + ' / ' + nf(OPT.optPt.ki,5) + '</b></div>' +
     '<div class="kpi"><span>Índice <i>J</i> Ótimo (' + OPT.metric + ')</span><b style="color:var(--ok)">' + nf(OPT.optPt.J,1) + ' (−' + nf(gainPct,1) + '%)</b></div>';
 
-  // 1. Gráfico 3D com Plotly: Eixo X = Kp, Eixo Y = Índice J, Eixo Z = Ki
+  renderMatrix5x5();
+
   if (typeof Plotly !== 'undefined') {
-    // Transpõe yGrid para alinhar x = xVals (Kp) e y = zVals (Ki) e z = J, e mapeia eixos conforme solicitado:
-    // Eixo X: Ganho Proporcional (Kp), Eixo Y: Índice de Desempenho (J), Eixo Z: Ganho Integral (Ki)
     const surfX = [], surfY = [], surfZ = [];
-    // Clamping visual para picos instáveis não esmagarem o vale
     const capJ = Math.max(OPT.critPt.J * 3.5, OPT.optPt.J * 5);
     for (let j = 0; j < OPT.zVals.length; j++) {
       const rx = [], ry = [], rz = [];
       for (let i = 0; i < OPT.xVals.length; i++) {
-        rx.push(OPT.xVals[i]); // Eixo X: Kp
-        ry.push(Math.min(capJ, OPT.yGrid[j][i])); // Eixo Y: Índice J
-        rz.push(OPT.zVals[j]); // Eixo Z: Ki
+        rx.push(OPT.xVals[i]);
+        ry.push(Math.min(capJ, OPT.yGrid[j][i]));
+        rz.push(OPT.zVals[j]);
       }
       surfX.push(rx); surfY.push(ry); surfZ.push(rz);
     }
@@ -811,7 +857,6 @@ function renderOptimization(){
     Plotly.newPlot('plot3d', [traceSurf, traceCrit, traceOpt], layout3D, {responsive: true, displaylogo: false});
   }
 
-  // 2. Gráfico 2D do Ponto Ótimo (corte transversal passando pelo ponto ótimo)
   updateOpt2DChart();
 }
 
@@ -940,7 +985,6 @@ function updateReadouts(){
   setRO('roU', nf(R.u[k],1) + '<small>%</small>');
   setRO('roR', nf(R.rho[k],2) + '<small>t/m³</small>');
 }
-function hash(n){ const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); }
 
 function drawBelt(){
   const cv = $('belt'); const ctx = cv.getContext('2d');
@@ -1006,7 +1050,6 @@ function drawBelt(){
   ctx.fillStyle = '#1C2226'; ctx.textAlign = 'center'; ctx.font = '600 12px Barlow, system-ui, sans-serif';
   ctx.fillText('WIT-101 (VP)', xS, yB + 2 * r + 27);
 
-  // Linha tracejada de realimentação (WIT-101 -> PID -> Alimentador)
   if (P.ctrlMode === 'auto') {
     ctx.strokeStyle = C.sp; ctx.setLineDash([4, 3]); ctx.lineWidth = 1.5;
     ctx.beginPath();
