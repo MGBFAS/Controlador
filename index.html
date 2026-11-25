@@ -412,12 +412,12 @@ function calcCriticallyDamped(){
 /* ---------- núcleo de simulação em malha fechada ---------- */
 function gauss(){ let u = 0, v = 0; while (u === 0) u = Math.random(); while (v === 0) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
 
-function simulateClosedLoop(Kc, Ki, Kd_c, noiseArr, useNoise){
+function simulateClosedLoop(Kc, Ki, Kd_c, noiseArr, useNoise, forceAuto){
   const T = P.T;
   const N = Math.floor(P.dur / T + 1e-9) + 1;
   const kSP = Math.round(P.tSP / T);
   const kD = Math.round(P.tD / T);
-  const isAuto = P.ctrlMode === 'auto';
+  const isAuto = forceAuto ? true : (P.ctrlMode === 'auto');
 
   const yu = new Float64Array(N);
   const yd = new Float64Array(N);
@@ -514,6 +514,18 @@ function evalPerformance(sim, metric){
   return J;
 }
 
+function isSimStable(sim){
+  const lastY = sim.yClean[sim.N - 1];
+  if (!Number.isFinite(lastY) || Math.abs(lastY) > P.Qmax * 5) return false;
+  // Verifica se há oscilação divergente no final da janela
+  const tailStart = Math.max(0, sim.N - Math.max(10, Math.round(10 / sim.T)));
+  let maxTailErr = 0;
+  for (let k = tailStart; k < sim.N; k++) {
+    maxTailErr = Math.max(maxTailErr, Math.abs(sim.err[k]));
+  }
+  return maxTailErr < P.Qmax * 2;
+}
+
 function simulate(newNoise){
   const T = P.T, N = Math.floor(P.dur / T + 1e-9) + 1;
   let noise = (!newNoise && R && R.noiseRaw && R.noiseRaw.length === N) ? R.noiseRaw : null;
@@ -521,8 +533,8 @@ function simulate(newNoise){
     noise = new Float64Array(N);
     for (let k = 0; k < N; k++) noise[k] = gauss();
   }
-  const sim = simulateClosedLoop(P.Kc, P.Ki, P.Kd_c, noise, true);
-  const simClean = simulateClosedLoop(P.Kc, P.Ki, P.Kd_c, null, false);
+  const sim = simulateClosedLoop(P.Kc, P.Ki, P.Kd_c, noise, true, false);
+  const simClean = simulateClosedLoop(P.Kc, P.Ki, P.Kd_c, null, false, false);
 
   const ptsY = [], ptsSP = [], ptsU = [], ptsR = [];
   let ymin = Infinity, ymax = -Infinity;
@@ -542,7 +554,7 @@ function simulate(newNoise){
   };
 
   const iaeVal = evalPerformance(simClean, 'IAE');
-  const maeVal = iaeVal / P.dur; // Área média do erro (t/h)
+  const maeVal = iaeVal / P.dur;
 
   R = Object.assign(sim, {
     noiseRaw: noise,
@@ -568,18 +580,17 @@ function runOptimization(){
 
   const objFn = (kp, ki) => {
     if (kp <= 1e-6 || ki <= 1e-7 || kp > CRIT.Kc * 8 || ki > CRIT.Ki * 8) return 1e12;
-    const s = simulateClosedLoop(kp, ki, P.Kd_c, null, false);
-    const lastY = s.yClean[s.N - 1];
-    if (!Number.isFinite(lastY) || Math.abs(lastY) > M.Qmax * 5) return 1e12;
+    const s = simulateClosedLoop(kp, ki, P.Kd_c, null, false, true);
+    if (!isSimStable(s)) return 1e12;
     return evalPerformance(s, P.metric);
   };
 
   // 1. Varredura ampla inicial para localizar o vale global
   let bestInit = {kp: CRIT.Kc, ki: CRIT.Ki, J: objFn(CRIT.Kc, CRIT.Ki)};
-  for (let j = 0; j < 18; j++) {
-    const ki = CRIT.Ki * (0.2 + 3.0 * j / 17);
-    for (let i = 0; i < 18; i++) {
-      const kp = CRIT.Kc * (0.2 + 3.0 * i / 17);
+  for (let j = 0; j < 20; j++) {
+    const ki = CRIT.Ki * (0.2 + 3.0 * j / 19);
+    for (let i = 0; i < 20; i++) {
+      const kp = CRIT.Kc * (0.2 + 3.0 * i / 19);
       const val = objFn(kp, ki);
       if (val < bestInit.J) bestInit = {kp, ki, J: val};
     }
@@ -620,8 +631,8 @@ function runOptimization(){
   const optPt = {kp: simplex[0].x, ki: simplex[0].y, J: simplex[0].f};
 
   // Calcula MAE (Área Média do Erro) para o ponto ótimo e criticamente amortecido
-  const simOpt = simulateClosedLoop(optPt.kp, optPt.ki, P.Kd_c, null, false);
-  const simCrit = simulateClosedLoop(CRIT.Kc, CRIT.Ki, P.Kd_c, null, false);
+  const simOpt = simulateClosedLoop(optPt.kp, optPt.ki, P.Kd_c, null, false, true);
+  const simCrit = simulateClosedLoop(CRIT.Kc, CRIT.Ki, P.Kd_c, null, false, true);
   optPt.mae = evalPerformance(simOpt, 'IAE') / P.dur;
   const critJ = objFn(CRIT.Kc, CRIT.Ki);
   const critMae = evalPerformance(simCrit, 'IAE') / P.dur;
@@ -630,14 +641,14 @@ function runOptimization(){
   const span = P.spanPct;
   const dKp = optPt.kp * span;
   const dKi = optPt.ki * span;
-  const nGrid = 25; // índice 12 é exatamente optPt
+  const nGrid = 25;
   const xVals = [], zVals = [], yGrid = [];
   for (let i = 0; i < nGrid; i++) {
-    const frac = (i - 12) / 12; // -1 a +1, 0 no centro
+    const frac = (i - 12) / 12;
     xVals.push(Math.max(1e-5, optPt.kp + frac * dKp));
   }
   for (let j = 0; j < nGrid; j++) {
-    const frac = (j - 12) / 12; // -1 a +1, 0 no centro
+    const frac = (j - 12) / 12;
     zVals.push(Math.max(1e-6, optPt.ki + frac * dKi));
   }
   for (let j = 0; j < nGrid; j++) {
@@ -663,7 +674,9 @@ function renderMatrix5x5(){
   const box = $('matrix5x5Box');
   if (!box || !OPT) return;
 
-  // Índices simétricos [-1, -0.5, 0 (CENTRO = ÓTIMO), +0.5, +1]
+  const prevSP = P.spOn, prevDSP = P.dsp;
+  if (!P.spOn && !P.ldOn) { P.spOn = true; P.dsp = 100; }
+
   const offsets = [-1, -0.5, 0, 0.5, 1];
   const kp5 = offsets.map(f => Math.max(1e-5, OPT.optPt.kp + f * OPT.dKp));
   const ki5 = offsets.map(f => Math.max(1e-6, OPT.optPt.ki + f * OPT.dKi));
@@ -679,9 +692,8 @@ function renderMatrix5x5(){
     const tagR = j === 2 ? ' <small>(Ótimo)</small>' : '';
     h += '<tr><th>' + nf(ki5[j], 5) + tagR + '</th>';
     for (let i = 0; i < 5; i++) {
-      const s = simulateClosedLoop(kp5[i], ki5[j], P.Kd_c, null, false);
-      const lastY = s.yClean[s.N - 1];
-      const isValid = Number.isFinite(lastY) && Math.abs(lastY) <= M.Qmax * 5;
+      const s = simulateClosedLoop(kp5[i], ki5[j], P.Kd_c, null, false, true);
+      const isValid = isSimStable(s);
       const val = isValid ? evalPerformance(s, OPT.metric) : Infinity;
       const mae = isValid ? (evalPerformance(s, 'IAE') / P.dur) : Infinity;
 
@@ -700,6 +712,7 @@ function renderMatrix5x5(){
     h += '</tr>';
   }
   h += '</tbody></table>';
+  P.spOn = prevSP; P.dsp = prevDSP;
   box.innerHTML = h;
 }
 
@@ -842,7 +855,6 @@ function renderOptimization(){
     };
 
     const traces = [traceSurf, traceOpt];
-    // Exibe o ponto criticamente amortecido se estiver dentro do domínio visualizado
     if (OPT.critPt.kp >= OPT.xVals[0] && OPT.critPt.kp <= OPT.xVals[OPT.xVals.length - 1] &&
         OPT.critPt.ki >= OPT.zVals[0] && OPT.critPt.ki <= OPT.zVals[OPT.zVals.length - 1]) {
       traces.push({
@@ -889,8 +901,8 @@ function updateOpt2DChart(){
     xMin = OPT.xVals[0]; xMax = OPT.xVals[OPT.xVals.length - 1];
     for (let i = 0; i <= 60; i++) {
       const kp = xMin + (xMax - xMin) * i / 60;
-      const s = simulateClosedLoop(kp, OPT.optPt.ki, P.Kd_c, null, false);
-      const val = Math.min(capJ, evalPerformance(s, OPT.metric));
+      const s = simulateClosedLoop(kp, OPT.optPt.ki, P.Kd_c, null, false, true);
+      const val = isSimStable(s) ? Math.min(capJ, evalPerformance(s, OPT.metric)) : capJ;
       ptsCurve.push({x: kp, y: val});
     }
     chOpt2D.options.scales.x.title.text = 'Ganho Proporcional Kp,c centrado no ótimo (Ki = ' + nf(OPT.optPt.ki, 5) + ')';
@@ -899,8 +911,8 @@ function updateOpt2DChart(){
     xMin = OPT.zVals[0]; xMax = OPT.zVals[OPT.zVals.length - 1];
     for (let i = 0; i <= 60; i++) {
       const ki = xMin + (xMax - xMin) * i / 60;
-      const s = simulateClosedLoop(OPT.optPt.kp, ki, P.Kd_c, null, false);
-      const val = Math.min(capJ, evalPerformance(s, OPT.metric));
+      const s = simulateClosedLoop(OPT.optPt.kp, ki, P.Kd_c, null, false, true);
+      const val = isSimStable(s) ? Math.min(capJ, evalPerformance(s, OPT.metric)) : capJ;
       ptsCurve.push({x: ki, y: val});
     }
     chOpt2D.options.scales.x.title.text = 'Ganho Integral Ki centrado no ótimo (Kp,c = ' + nf(OPT.optPt.kp, 5) + ')';
