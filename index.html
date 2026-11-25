@@ -69,10 +69,10 @@ input[type=range]{width:100%;accent-color:var(--steel);margin:8px 0 2px}
 .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
 .status{margin-top:10px;padding:8px 12px;border-radius:4px;font-size:.95rem;background:var(--panel-2);border-left:4px solid var(--ok)}
 .status.warn{border-left-color:var(--warn)}
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:10px;margin-top:12px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:10px;margin-top:12px}
 .kpi{background:var(--panel-2);border-radius:4px;padding:8px 10px}
 .kpi span{display:block;font-size:.8rem;color:var(--ink-2)}
-.kpi b{font-size:1.15rem;font-variant-numeric:tabular-nums;font-weight:600}
+.kpi b{font-size:1.12rem;font-variant-numeric:tabular-nums;font-weight:600}
 
 /* equations */
 .eq{font-family:"Barlow",system-ui,sans-serif;font-style:italic;font-size:1.05rem;display:flex;flex-wrap:wrap;align-items:center;gap:.35em;margin:.5rem 0;padding:10px 12px;background:var(--panel-2);border-radius:4px;overflow-x:auto}
@@ -140,7 +140,7 @@ canvas#belt{display:block;width:100%;height:220px}
 <div class="wrap">
 <header>
   <h1>Malha Fechada e Otimização: Vazão de Minério</h1>
-  <p>Implementação de Controlador PID Digital (ZOH/Trapezoidal com Anti-Windup) acoplado ao Simulador FOPDT da correia transportadora, com Matriz 5×5, análise 3D e algoritmo de otimização.</p>
+  <p>Implementação de Controlador PID Digital (ZOH/Trapezoidal com Anti-Windup) acoplado ao Simulador FOPDT da correia transportadora, com Matriz 5×5 centrada no ponto ótimo, análise 3D e área média do erro.</p>
 </header>
 
 <div class="layout">
@@ -273,10 +273,10 @@ canvas#belt{display:block;width:100%;height:220px}
     <div class="results" id="results"></div>
   </section>
 
-  <!-- B) OTIMIZAÇÃO, MATRIZ 5x5 E SUPERFÍCIE 3D EM TORNO DO AJUSTE CRITICAMENTE AMORTECIDO -->
+  <!-- B) OTIMIZAÇÃO, MATRIZ 5x5 E SUPERFÍCIE 3D CENTRADA NO PONTO ÓTIMO -->
   <section class="step">
     <h2>B) Otimização, Matriz 5×5 e Superfície 3D</h2>
-    <p class="small">Varredura paramétrica em torno do ajuste <strong>criticamente amortecido</strong> (<i>K</i><sub>p,crit</sub>, <i>K</i><sub>i,crit</sub>) combinada com refinamento contínuo (Nelder-Mead) para minimizar o índice de desempenho escolhido.</p>
+    <p class="small">O algoritmo localiza o mínimo global (Nelder-Mead) a partir do ajuste <strong>criticamente amortecido</strong> e centraliza a <strong>Matriz 5×5</strong>, a <strong>Superfície 3D</strong> e o <strong>Gráfico 2D</strong> simetricamente em torno do <b>Ponto Ótimo</b>.</p>
     <div class="controls">
       <label class="field"><span>Critério de Desempenho (<i>J</i>)</span>
         <select id="metric">
@@ -286,11 +286,11 @@ canvas#belt{display:block;width:100%;height:220px}
           <option value="ITAE_U">ITAE + Esforço Δu (λ=0,5)</option>
         </select>
       </label>
-      <label class="field"><span>Faixa de busca (± % do crítico)</span>
+      <label class="field"><span>Abertura em torno do Ótimo</span>
         <select id="spanPct">
-          <option value="0.75">25% a 175% do crítico</option>
-          <option value="1.0">10% a 200% do crítico</option>
-          <option value="1.5" selected>10% a 250% do crítico</option>
+          <option value="0.4">± 40 % ao redor do ótimo</option>
+          <option value="0.6" selected>± 60 % ao redor do ótimo</option>
+          <option value="0.85">± 85 % ao redor do ótimo</option>
         </select>
       </label>
       <label class="field"><span>Parâmetro no Gráfico 2D</span>
@@ -304,15 +304,15 @@ canvas#belt{display:block;width:100%;height:220px}
 
     <div class="kpis" id="optKpis"></div>
 
-    <h3 style="font-family:'Barlow Condensed',sans-serif;font-size:1.25rem;margin:18px 0 4px">Matriz 5×5 do Índice de Desempenho (<i>K</i><sub>p,c</sub> × <i>K</i><sub>i</sub>)</h3>
-    <p class="small muted" style="margin:0 0 8px">A célula central <b>[3,3]</b> corresponde ao ajuste <b>Criticamente Amortecido (IMC)</b>. A célula destacada em dourado com <b>★</b> indica o <b>mínimo discreto da grade 5×5</b>.</p>
+    <h3 style="font-family:'Barlow Condensed',sans-serif;font-size:1.25rem;margin:18px 0 4px">Matriz 5×5 Centrada no Ponto Ótimo (<i>K</i><sub>p,c</sub> × <i>K</i><sub>i</sub>)</h3>
+    <p class="small muted" style="margin:0 0 8px">A célula central <b>[3,3]</b> (em dourado com <b>★</b>) é o <b>Ponto Ótimo</b>. Os valores entre parênteses mostram a <b>Área Média do Erro (MAE em t/h)</b>.</p>
     <div class="tbl-wrap" id="matrix5x5Box"></div>
 
     <h3 style="font-family:'Barlow Condensed',sans-serif;font-size:1.25rem;margin:18px 0 4px">Superfície 3D: Eixo X = Ganho Proporcional (<i>K</i><sub>p,c</sub>) | Eixo Y = Índice <i>J</i> | Eixo Z = Ganho Integral (<i>K</i><sub>i</sub>)</h3>
-    <p class="small muted" style="margin:0">Arraste para rotacionar em 3D e use o scroll para zoom. O ponto verde marca o ajuste <b>Criticamente Amortecido</b>; o losango dourado marca o <b>Ponto Ótimo</b>.</p>
+    <p class="small muted" style="margin:0">Malha simétrica centrada no <b>Ponto Ótimo</b> (losango dourado no centro do vale). O marcador verde indica a posição do ajuste <b>Criticamente Amortecido</b>.</p>
     <div class="plot3d-box" id="plot3d"></div>
 
-    <h3 style="font-family:'Barlow Condensed',sans-serif;font-size:1.25rem;margin:18px 0 4px">Gráfico 2D do Ponto Ótimo (Corte Transversal na Direção Ótima)</h3>
+    <h3 style="font-family:'Barlow Condensed',sans-serif;font-size:1.25rem;margin:18px 0 4px">Gráfico 2D Centrado no Ponto Ótimo</h3>
     <div class="chart-box chart-opt2d"><canvas id="chOpt2D" aria-label="Gráfico 2D da curva de desempenho e ponto ótimo"></canvas></div>
   </section>
 
@@ -328,7 +328,6 @@ const nf = (x, d = 2) => Number.isFinite(x) ? x.toLocaleString('pt-BR', {minimum
 const mn = s => String(s).replace(/^-/, '−');
 const nfs = (x, d) => mn(nf(x, d));
 const signed = (x, d) => (x < 0 ? '− ' : '+ ') + nf(Math.abs(x), d);
-const sup = s => '<sup>' + s + '</sup>';
 
 const ids = ['L','v','Qmax','tau','taud','u0','rho0','T','Kc','Ki','Kd_c','dsp','tSP','drho','tD','dur','noise'];
 let P = {}, M = {}, Dp = {}, Dd = {}, R = null, SR = {}, CRIT = {}, OPT = null;
@@ -542,16 +541,20 @@ function simulate(newNoise){
     return simClean.yClean[idx];
   };
 
+  const iaeVal = evalPerformance(simClean, 'IAE');
+  const maeVal = iaeVal / P.dur; // Área média do erro (t/h)
+
   R = Object.assign(sim, {
     noiseRaw: noise,
     ptsY, ptsSP, ptsU, ptsR, ymin, ymax, Qc,
     J_ITAE: evalPerformance(simClean, 'ITAE'),
-    J_IAE: evalPerformance(simClean, 'IAE'),
+    J_IAE: iaeVal,
+    J_MAE: maeVal,
     J_ISE: evalPerformance(simClean, 'ISE')
   });
 }
 
-/* ---------- algoritmo de otimização (Grid Search 25x25 + Nelder-Mead) ---------- */
+/* ---------- algoritmo de otimização + centralização no ponto ótimo ---------- */
 function runOptimization(){
   read();
   if (!validate().length) {
@@ -563,43 +566,32 @@ function runOptimization(){
   const prevSP = P.spOn, prevDSP = P.dsp;
   if (!P.spOn && !P.ldOn) { P.spOn = true; P.dsp = 100; }
 
-  const span = P.spanPct;
-  const kpMin = Math.max(1e-5, CRIT.Kc * Math.max(0.1, 1 - span));
-  const kpMax = CRIT.Kc * (1 + span);
-  const kiMin = Math.max(1e-6, CRIT.Ki * Math.max(0.1, 1 - span));
-  const kiMax = CRIT.Ki * (1 + span);
-
-  const nGrid = 25;
-  const xVals = [], zVals = [], yGrid = [];
-  for (let i = 0; i < nGrid; i++) xVals.push(kpMin + (kpMax - kpMin) * i / (nGrid - 1));
-  for (let j = 0; j < nGrid; j++) zVals.push(kiMin + (kiMax - kiMin) * j / (nGrid - 1));
-
   const objFn = (kp, ki) => {
-    if (kp < kpMin || ki < kiMin || kp > kpMax || ki > kiMax) return 1e12;
+    if (kp <= 1e-6 || ki <= 1e-7 || kp > CRIT.Kc * 8 || ki > CRIT.Ki * 8) return 1e12;
     const s = simulateClosedLoop(kp, ki, P.Kd_c, null, false);
     const lastY = s.yClean[s.N - 1];
     if (!Number.isFinite(lastY) || Math.abs(lastY) > M.Qmax * 5) return 1e12;
     return evalPerformance(s, P.metric);
   };
 
-  let bestGrid = {kp: CRIT.Kc, ki: CRIT.Ki, J: objFn(CRIT.Kc, CRIT.Ki)};
-  for (let j = 0; j < nGrid; j++) {
-    const row = [];
-    for (let i = 0; i < nGrid; i++) {
-      const val = objFn(xVals[i], zVals[j]);
-      row.push(val);
-      if (val < bestGrid.J) bestGrid = {kp: xVals[i], ki: zVals[j], J: val};
+  // 1. Varredura ampla inicial para localizar o vale global
+  let bestInit = {kp: CRIT.Kc, ki: CRIT.Ki, J: objFn(CRIT.Kc, CRIT.Ki)};
+  for (let j = 0; j < 18; j++) {
+    const ki = CRIT.Ki * (0.2 + 3.0 * j / 17);
+    for (let i = 0; i < 18; i++) {
+      const kp = CRIT.Kc * (0.2 + 3.0 * i / 17);
+      const val = objFn(kp, ki);
+      if (val < bestInit.J) bestInit = {kp, ki, J: val};
     }
-    yGrid.push(row);
   }
 
-  // Refinamento Nelder-Mead 2D restrito à malha
+  // 2. Refinamento contínuo Nelder-Mead 2D
   let simplex = [
-    {x: bestGrid.kp, y: bestGrid.ki, f: bestGrid.J},
-    {x: Math.min(kpMax, bestGrid.kp * 1.05), y: bestGrid.ki, f: objFn(Math.min(kpMax, bestGrid.kp * 1.05), bestGrid.ki)},
-    {x: bestGrid.kp, y: Math.min(kiMax, bestGrid.ki * 1.05), f: objFn(bestGrid.kp, Math.min(kiMax, bestGrid.ki * 1.05))}
+    {x: bestInit.kp, y: bestInit.ki, f: bestInit.J},
+    {x: bestInit.kp * 1.05, y: bestInit.ki, f: objFn(bestInit.kp * 1.05, bestInit.ki)},
+    {x: bestInit.kp, y: bestInit.ki * 1.05, f: objFn(bestInit.kp, bestInit.ki * 1.05)}
   ];
-  for (let iter = 0; iter < 60; iter++) {
+  for (let iter = 0; iter < 70; iter++) {
     simplex.sort((a, b) => a.f - b.f);
     const cx = (simplex[0].x + simplex[1].x) / 2;
     const cy = (simplex[0].y + simplex[1].y) / 2;
@@ -626,64 +618,82 @@ function runOptimization(){
   }
   simplex.sort((a, b) => a.f - b.f);
   const optPt = {kp: simplex[0].x, ki: simplex[0].y, J: simplex[0].f};
+
+  // Calcula MAE (Área Média do Erro) para o ponto ótimo e criticamente amortecido
+  const simOpt = simulateClosedLoop(optPt.kp, optPt.ki, P.Kd_c, null, false);
+  const simCrit = simulateClosedLoop(CRIT.Kc, CRIT.Ki, P.Kd_c, null, false);
+  optPt.mae = evalPerformance(simOpt, 'IAE') / P.dur;
   const critJ = objFn(CRIT.Kc, CRIT.Ki);
+  const critMae = evalPerformance(simCrit, 'IAE') / P.dur;
+
+  // 3. Constrói a grade 25x25 SIMÉTRICA E CENTRADA NO PONTO ÓTIMO (índice central = 12)
+  const span = P.spanPct;
+  const dKp = optPt.kp * span;
+  const dKi = optPt.ki * span;
+  const nGrid = 25; // índice 12 é exatamente optPt
+  const xVals = [], zVals = [], yGrid = [];
+  for (let i = 0; i < nGrid; i++) {
+    const frac = (i - 12) / 12; // -1 a +1, 0 no centro
+    xVals.push(Math.max(1e-5, optPt.kp + frac * dKp));
+  }
+  for (let j = 0; j < nGrid; j++) {
+    const frac = (j - 12) / 12; // -1 a +1, 0 no centro
+    zVals.push(Math.max(1e-6, optPt.ki + frac * dKi));
+  }
+  for (let j = 0; j < nGrid; j++) {
+    const row = [];
+    for (let i = 0; i < nGrid; i++) {
+      row.push(objFn(xVals[i], zVals[j]));
+    }
+    yGrid.push(row);
+  }
 
   P.spOn = prevSP; P.dsp = prevDSP;
-  OPT = {xVals, zVals, yGrid, optPt, critPt: {kp: CRIT.Kc, ki: CRIT.Ki, J: critJ}, metric: P.metric};
+  OPT = {
+    xVals, zVals, yGrid, optPt,
+    critPt: {kp: CRIT.Kc, ki: CRIT.Ki, J: critJ, mae: critMae},
+    metric: P.metric, dKp, dKi
+  };
   $('btnApplyOpt').disabled = false;
   renderOptimization();
 }
 
-/* ---------- matriz 5x5 ---------- */
+/* ---------- matriz 5x5 centrada no ponto ótimo ---------- */
 function renderMatrix5x5(){
   const box = $('matrix5x5Box');
   if (!box || !OPT) return;
 
-  const span = Math.min(0.85, P.spanPct);
-  const mults = [1 - span, 1 - span / 2, 1, 1 + span / 2, 1 + span];
-  const kp5 = mults.map(m => CRIT.Kc * m);
-  const ki5 = mults.map(m => CRIT.Ki * m);
-
-  const grid = [];
-  let minVal = Infinity, minI = 2, minJ = 2;
-
-  for (let j = 0; j < 5; j++) {
-    const row = [];
-    for (let i = 0; i < 5; i++) {
-      const s = simulateClosedLoop(kp5[i], ki5[j], P.Kd_c, null, false);
-      const lastY = s.yClean[s.N - 1];
-      const val = (!Number.isFinite(lastY) || Math.abs(lastY) > M.Qmax * 5)
-        ? Infinity
-        : evalPerformance(s, OPT.metric);
-      row.push(val);
-      if (val < minVal) { minVal = val; minI = i; minJ = j; }
-    }
-    grid.push(row);
-  }
+  // Índices simétricos [-1, -0.5, 0 (CENTRO = ÓTIMO), +0.5, +1]
+  const offsets = [-1, -0.5, 0, 0.5, 1];
+  const kp5 = offsets.map(f => Math.max(1e-5, OPT.optPt.kp + f * OPT.dKp));
+  const ki5 = offsets.map(f => Math.max(1e-6, OPT.optPt.ki + f * OPT.dKi));
 
   let h = '<table><thead><tr><th><i>K</i><sub>i</sub> \\ <i>K</i><sub>p,c</sub></th>';
   for (let i = 0; i < 5; i++) {
-    const tag = i === 2 ? ' <small>(Crit.)</small>' : '';
+    const tag = i === 2 ? ' <small>(Ótimo)</small>' : '';
     h += '<th class="r">' + nf(kp5[i], 5) + tag + '</th>';
   }
   h += '</tr></thead><tbody>';
 
   for (let j = 0; j < 5; j++) {
-    const tagR = j === 2 ? ' <small>(Crit.)</small>' : '';
+    const tagR = j === 2 ? ' <small>(Ótimo)</small>' : '';
     h += '<tr><th>' + nf(ki5[j], 5) + tagR + '</th>';
     for (let i = 0; i < 5; i++) {
-      const val = grid[j][i];
-      const isCrit = (i === 2 && j === 2);
-      const isMin = (i === minI && j === minJ);
-      let style = '';
-      let label = Number.isFinite(val) ? nf(val, 1) : 'Instável';
+      const s = simulateClosedLoop(kp5[i], ki5[j], P.Kd_c, null, false);
+      const lastY = s.yClean[s.N - 1];
+      const isValid = Number.isFinite(lastY) && Math.abs(lastY) <= M.Qmax * 5;
+      const val = isValid ? evalPerformance(s, OPT.metric) : Infinity;
+      const mae = isValid ? (evalPerformance(s, 'IAE') / P.dur) : Infinity;
 
-      if (isMin) {
-        style = 'background:rgba(233,177,0,0.22);font-weight:700;border:1.5px solid var(--safety);';
+      const isCenterOpt = (i === 2 && j === 2);
+      let style = '';
+      let label = Number.isFinite(val)
+        ? nf(val, 1) + ' <small style="opacity:.8">(' + nf(mae, 2) + ' t/h)</small>'
+        : 'Instável';
+
+      if (isCenterOpt) {
+        style = 'background:rgba(233,177,0,0.25);font-weight:700;border:2px solid var(--safety);';
         label += ' ★';
-      } else if (isCrit) {
-        style = 'background:rgba(47,122,74,0.18);font-weight:600;border:1px dashed var(--ok);';
-        label += ' (IMC)';
       }
       h += '<td class="r" style="' + style + '">' + label + '</td>';
     }
@@ -767,8 +777,9 @@ function renderResults(){
 
   let h = '<h3>Desempenho da Simulação Atual em Malha Fechada</h3>';
   h += '<div class="kpis">' +
+    '<div class="kpi"><span>Área Média do Erro (MAE)</span><b>' + nf(R.J_MAE, 2) + ' t/h</b></div>' +
     '<div class="kpi"><span>ITAE (sem ruído)</span><b>' + nf(R.J_ITAE, 1) + '</b></div>' +
-    '<div class="kpi"><span>IAE (sem ruído)</span><b>' + nf(R.J_IAE, 1) + '</b></div>' +
+    '<div class="kpi"><span>IAE — Área Total (t/h·s)</span><b>' + nf(R.J_IAE, 1) + '</b></div>' +
     '<div class="kpi"><span>ISE (sem ruído)</span><b>' + nf(R.J_ISE, 0) + '</b></div>' +
     '<div class="kpi"><span>Sobressinal (Overshoot)</span><b>' + nf(overshoot, 1) + ' %</b></div>' +
     '<div class="kpi"><span>Faixa da VM (u)</span><b>' + nf(minU, 1) + '–' + nf(maxU, 1) + '%</b></div>' +
@@ -782,10 +793,11 @@ function renderResults(){
 function renderOptimization(){
   if (!OPT) return;
   const gainPct = ((OPT.critPt.J - OPT.optPt.J) / OPT.critPt.J) * 100;
+  const maePct = ((OPT.critPt.mae - OPT.optPt.mae) / OPT.critPt.mae) * 100;
   $('optKpis').innerHTML =
-    '<div class="kpi"><span><i>K</i><sub>p,crit</sub> / <i>K</i><sub>i,crit</sub> (Amortecido)</span><b>' + nf(OPT.critPt.kp,4) + ' / ' + nf(OPT.critPt.ki,5) + '</b></div>' +
-    '<div class="kpi"><span>Índice <i>J</i> Criticamente Amortecido</span><b>' + nf(OPT.critPt.J,1) + '</b></div>' +
-    '<div class="kpi"><span><i>K</i><sub>p,ótimo</sub> / <i>K</i><sub>i,ótimo</sub> (Otimizado)</span><b style="color:var(--ok)">' + nf(OPT.optPt.kp,4) + ' / ' + nf(OPT.optPt.ki,5) + '</b></div>' +
+    '<div class="kpi"><span><i>K</i><sub>p,ótimo</sub> / <i>K</i><sub>i,ótimo</sub> (Centro)</span><b style="color:var(--ok)">' + nf(OPT.optPt.kp,4) + ' / ' + nf(OPT.optPt.ki,5) + '</b></div>' +
+    '<div class="kpi"><span>Área Média do Erro (Ótimo)</span><b style="color:var(--ok)">' + nf(OPT.optPt.mae,2) + ' t/h (−' + nf(maePct,1) + '%)</b></div>' +
+    '<div class="kpi"><span>Área Média do Erro (Crit. IMC)</span><b>' + nf(OPT.critPt.mae,2) + ' t/h</b></div>' +
     '<div class="kpi"><span>Índice <i>J</i> Ótimo (' + OPT.metric + ')</span><b style="color:var(--ok)">' + nf(OPT.optPt.J,1) + ' (−' + nf(gainPct,1) + '%)</b></div>';
 
   renderMatrix5x5();
@@ -816,31 +828,36 @@ function renderOptimization(){
       hovertemplate: 'Kp: %{x:.5f}<br>Índice J: %{y:.1f}<br>Ki: %{z:.5f}<extra></extra>'
     };
 
-    const traceCrit = {
-      type: 'scatter3d',
-      mode: 'markers+text',
-      name: 'Criticamente Amortecido',
-      x: [OPT.critPt.kp],
-      y: [Math.min(capJ, OPT.critPt.J)],
-      z: [OPT.critPt.ki],
-      text: ['Criticamente Amortecido'],
-      textposition: 'top center',
-      textfont: {color: C.ink, size: 11},
-      marker: {size: 7, color: C.ok, symbol: 'circle', line: {color: '#fff', width: 1.5}}
-    };
-
     const traceOpt = {
       type: 'scatter3d',
       mode: 'markers+text',
-      name: 'Ponto Ótimo',
+      name: 'Ponto Ótimo (Centro)',
       x: [OPT.optPt.kp],
       y: [OPT.optPt.J],
       z: [OPT.optPt.ki],
-      text: ['Ponto Ótimo'],
+      text: ['Ponto Ótimo (Centro)'],
       textposition: 'bottom center',
       textfont: {color: C.ink, size: 12},
       marker: {size: 9, color: C.safety, symbol: 'diamond', line: {color: '#1C2226', width: 1.5}}
     };
+
+    const traces = [traceSurf, traceOpt];
+    // Exibe o ponto criticamente amortecido se estiver dentro do domínio visualizado
+    if (OPT.critPt.kp >= OPT.xVals[0] && OPT.critPt.kp <= OPT.xVals[OPT.xVals.length - 1] &&
+        OPT.critPt.ki >= OPT.zVals[0] && OPT.critPt.ki <= OPT.zVals[OPT.zVals.length - 1]) {
+      traces.push({
+        type: 'scatter3d',
+        mode: 'markers+text',
+        name: 'Criticamente Amortecido',
+        x: [OPT.critPt.kp],
+        y: [Math.min(capJ, OPT.critPt.J)],
+        z: [OPT.critPt.ki],
+        text: ['Criticamente Amortecido'],
+        textposition: 'top center',
+        textfont: {color: C.ink, size: 11},
+        marker: {size: 7, color: C.ok, symbol: 'circle', line: {color: '#fff', width: 1.5}}
+      });
+    }
 
     const layout3D = {
       margin: {l: 0, r: 0, t: 10, b: 0},
@@ -854,7 +871,7 @@ function renderOptimization(){
         camera: {eye: {x: 1.55, y: 1.45, z: 1.15}}
       }
     };
-    Plotly.newPlot('plot3d', [traceSurf, traceCrit, traceOpt], layout3D, {responsive: true, displaylogo: false});
+    Plotly.newPlot('plot3d', traces, layout3D, {responsive: true, displaylogo: false});
   }
 
   updateOpt2DChart();
@@ -865,34 +882,36 @@ function updateOpt2DChart(){
   const axis = $('optAxis2D').value;
   const ptsCurve = [];
   const capJ = Math.max(OPT.critPt.J * 3.5, OPT.optPt.J * 5);
-  let optX = 0, critX = 0;
+  let optX = 0, critX = 0, xMin = 0, xMax = 0;
 
   if (axis === 'Kp') {
     optX = OPT.optPt.kp; critX = OPT.critPt.kp;
-    const xMin = OPT.xVals[0], xMax = OPT.xVals[OPT.xVals.length - 1];
+    xMin = OPT.xVals[0]; xMax = OPT.xVals[OPT.xVals.length - 1];
     for (let i = 0; i <= 60; i++) {
       const kp = xMin + (xMax - xMin) * i / 60;
       const s = simulateClosedLoop(kp, OPT.optPt.ki, P.Kd_c, null, false);
       const val = Math.min(capJ, evalPerformance(s, OPT.metric));
       ptsCurve.push({x: kp, y: val});
     }
-    chOpt2D.options.scales.x.title.text = 'Ganho Proporcional Kp,c (com Ki fixo no ótimo = ' + nf(OPT.optPt.ki, 5) + ')';
+    chOpt2D.options.scales.x.title.text = 'Ganho Proporcional Kp,c centrado no ótimo (Ki = ' + nf(OPT.optPt.ki, 5) + ')';
   } else {
     optX = OPT.optPt.ki; critX = OPT.critPt.ki;
-    const zMin = OPT.zVals[0], zMax = OPT.zVals[OPT.zVals.length - 1];
+    xMin = OPT.zVals[0]; xMax = OPT.zVals[OPT.zVals.length - 1];
     for (let i = 0; i <= 60; i++) {
-      const ki = zMin + (zMax - zMin) * i / 60;
+      const ki = xMin + (xMax - xMin) * i / 60;
       const s = simulateClosedLoop(OPT.optPt.kp, ki, P.Kd_c, null, false);
       const val = Math.min(capJ, evalPerformance(s, OPT.metric));
       ptsCurve.push({x: ki, y: val});
     }
-    chOpt2D.options.scales.x.title.text = 'Ganho Integral Ki (com Kp,c fixo no ótimo = ' + nf(OPT.optPt.kp, 5) + ')';
+    chOpt2D.options.scales.x.title.text = 'Ganho Integral Ki centrado no ótimo (Kp,c = ' + nf(OPT.optPt.kp, 5) + ')';
   }
 
+  chOpt2D.options.scales.x.min = xMin;
+  chOpt2D.options.scales.x.max = xMax;
   chOpt2D.data.datasets[0].label = 'Curva de Desempenho (' + OPT.metric + ')';
   chOpt2D.data.datasets[0].data = ptsCurve;
   chOpt2D.data.datasets[1].data = [{x: optX, y: OPT.optPt.J}];
-  chOpt2D.data.datasets[2].data = [{x: critX, y: Math.min(capJ, OPT.critPt.J)}];
+  chOpt2D.data.datasets[2].data = (critX >= xMin && critX <= xMax) ? [{x: critX, y: Math.min(capJ, OPT.critPt.J)}] : [];
   chOpt2D.options.scales.y.title.text = 'Índice ' + OPT.metric;
   chOpt2D.update('none');
 }
@@ -920,7 +939,7 @@ function makeCharts(){
 
   chOpt2D = new Chart($('chOpt2D'), {type: 'line', data: {datasets: [
       {label: 'Curva de Desempenho', data: [], borderWidth: 2, pointRadius: 0, tension: 0.15, _dec: 2},
-      {label: 'Ponto Ótimo Global', data: [], type: 'scatter', pointRadius: 8, pointStyle: 'star', _dec: 4},
+      {label: 'Ponto Ótimo (Centro)', data: [], type: 'scatter', pointRadius: 9, pointStyle: 'star', _dec: 4},
       {label: 'Criticamente Amortecido', data: [], type: 'scatter', pointRadius: 6, pointStyle: 'circle', _dec: 4}]},
     options: Object.assign({}, base, {scales: {
       x: {type: 'linear', title: {display: true, text: 'Parâmetro de Ajuste'}},
