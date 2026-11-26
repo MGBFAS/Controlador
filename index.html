@@ -190,8 +190,8 @@ canvas#belt{display:block;width:100%;height:220px}
     <h2>3. Controlador Digital PID</h2>
     <p class="small muted">Controlador PID paralelo discretizado com integração trapezoidal, filtro derivativo (<i>N</i> = 10) na VP e anti-windup por saturação (0–100 %).</p>
     <div class="fields">
-      <label class="field"><span>Ganho Proporcional, <i>K</i><sub>p,c</sub></span><span class="inp"><input id="Kc" type="number" value="0.0227" step="0.002"><em>%/(t/h)</em></span></label>
-      <label class="field"><span>Ganho Integral, <i>K</i><sub>i</sub></span><span class="inp"><input id="Ki" type="number" value="0.00379" step="0.0005"><em>%/(t/h·s)</em></span></label>
+      <label class="field"><span>Ganho Proporcional, <i>K</i><sub>p,c</sub></span><span class="inp"><input id="Kc" type="number" value="0.01316" step="0.002"><em>%/(t/h)</em></span></label>
+      <label class="field"><span>Ganho Integral, <i>K</i><sub>i</sub></span><span class="inp"><input id="Ki" type="number" value="0.00219" step="0.0005"><em>%/(t/h·s)</em></span></label>
       <label class="field"><span>Ganho Derivativo, <i>K</i><sub>d,c</sub></span><span class="inp"><input id="Kd_c" type="number" value="0" step="0.01"><em>%·s/(t/h)</em></span></label>
       <label class="field"><span>Modo de Operação</span>
         <select id="ctrlMode">
@@ -276,7 +276,7 @@ canvas#belt{display:block;width:100%;height:220px}
   <!-- B) OTIMIZAÇÃO, MATRIZ 5x5 E SUPERFÍCIE 3D CENTRADA NO PONTO ÓTIMO -->
   <section class="step">
     <h2>B) Otimização, Matriz 5×5 e Superfície 3D</h2>
-    <p class="small">O algoritmo localiza o mínimo global (Nelder-Mead) a partir do ajuste <strong>criticamente amortecido</strong> e centraliza a <strong>Matriz 5×5</strong>, a <strong>Superfície 3D</strong> e o <strong>Gráfico 2D</strong> simetricamente em torno do <b>Ponto Ótimo</b>.</p>
+    <p class="small">O algoritmo localiza o mínimo global em (<i>K</i><sub>p,c</sub>, <i>T</i><sub>i</sub>) e refina por Nelder-Mead, garantindo chegada ao Setpoint com menor erro e centralizando a <strong>Matriz 5×5</strong>, a <strong>Superfície 3D</strong> e o <strong>Gráfico 2D</strong> em torno do <b>Ponto Ótimo</b>.</p>
     <div class="controls">
       <label class="field"><span>Critério de Desempenho (<i>J</i>)</span>
         <select id="metric">
@@ -517,13 +517,12 @@ function evalPerformance(sim, metric){
 function isSimStable(sim){
   const lastY = sim.yClean[sim.N - 1];
   if (!Number.isFinite(lastY) || Math.abs(lastY) > P.Qmax * 5) return false;
-  // Verifica se há oscilação divergente no final da janela
   const tailStart = Math.max(0, sim.N - Math.max(10, Math.round(10 / sim.T)));
   let maxTailErr = 0;
   for (let k = tailStart; k < sim.N; k++) {
     maxTailErr = Math.max(maxTailErr, Math.abs(sim.err[k]));
   }
-  return maxTailErr < P.Qmax * 2;
+  return maxTailErr < P.Qmax * 1.5;
 }
 
 function simulate(newNoise){
@@ -566,7 +565,7 @@ function simulate(newNoise){
   });
 }
 
-/* ---------- algoritmo de otimização + centralização no ponto ótimo ---------- */
+/* ---------- algoritmo de otimização global em (Kp, Ti) + refinamento Nelder-Mead ---------- */
 function runOptimization(){
   read();
   if (!validate().length) {
@@ -578,31 +577,39 @@ function runOptimization(){
   const prevSP = P.spOn, prevDSP = P.dsp;
   if (!P.spOn && !P.ldOn) { P.spOn = true; P.dsp = 100; }
 
+  const kpMin = Math.max(1e-5, CRIT.Kc * 0.3);
+  const kpMax = Math.max(CRIT.Kc * 10, 1.8 / M.Kp);
+  const tiMin = Math.max(P.T * 2, M.tau * 0.35);
+  const tiMax = M.tau * 2.5; // Evita colapso de Ki e garante convergência ao Setpoint
+
   const objFn = (kp, ki) => {
-    if (kp <= 1e-6 || ki <= 1e-7 || kp > CRIT.Kc * 8 || ki > CRIT.Ki * 8) return 1e12;
+    if (kp < kpMin || kp > kpMax || ki <= 1e-7) return 1e12;
+    const ti = kp / ki;
+    if (ti < tiMin || ti > tiMax) return 1e12;
     const s = simulateClosedLoop(kp, ki, P.Kd_c, null, false, true);
     if (!isSimStable(s)) return 1e12;
     return evalPerformance(s, P.metric);
   };
 
-  // 1. Varredura ampla inicial para localizar o vale global
+  // 1. Varredura global 28x28 em (Kp, Ti) para cobrir desde o ajuste conservador até 1.8/Kp
   let bestInit = {kp: CRIT.Kc, ki: CRIT.Ki, J: objFn(CRIT.Kc, CRIT.Ki)};
-  for (let j = 0; j < 20; j++) {
-    const ki = CRIT.Ki * (0.2 + 3.0 * j / 19);
-    for (let i = 0; i < 20; i++) {
-      const kp = CRIT.Kc * (0.2 + 3.0 * i / 19);
+  for (let j = 0; j < 28; j++) {
+    const ti = tiMin + (tiMax - tiMin) * j / 27;
+    for (let i = 0; i < 28; i++) {
+      const kp = kpMin + (kpMax - kpMin) * i / 27;
+      const ki = kp / ti;
       const val = objFn(kp, ki);
       if (val < bestInit.J) bestInit = {kp, ki, J: val};
     }
   }
 
-  // 2. Refinamento contínuo Nelder-Mead 2D
+  // 2. Refinamento contínuo Nelder-Mead 2D em (Kp, Ki)
   let simplex = [
     {x: bestInit.kp, y: bestInit.ki, f: bestInit.J},
-    {x: bestInit.kp * 1.05, y: bestInit.ki, f: objFn(bestInit.kp * 1.05, bestInit.ki)},
-    {x: bestInit.kp, y: bestInit.ki * 1.05, f: objFn(bestInit.kp, bestInit.ki * 1.05)}
+    {x: bestInit.kp * 1.04, y: bestInit.ki, f: objFn(bestInit.kp * 1.04, bestInit.ki)},
+    {x: bestInit.kp, y: bestInit.ki * 1.04, f: objFn(bestInit.kp, bestInit.ki * 1.04)}
   ];
-  for (let iter = 0; iter < 70; iter++) {
+  for (let iter = 0; iter < 80; iter++) {
     simplex.sort((a, b) => a.f - b.f);
     const cx = (simplex[0].x + simplex[1].x) / 2;
     const cy = (simplex[0].y + simplex[1].y) / 2;
@@ -634,8 +641,16 @@ function runOptimization(){
   const simOpt = simulateClosedLoop(optPt.kp, optPt.ki, P.Kd_c, null, false, true);
   const simCrit = simulateClosedLoop(CRIT.Kc, CRIT.Ki, P.Kd_c, null, false, true);
   optPt.mae = evalPerformance(simOpt, 'IAE') / P.dur;
-  const critJ = objFn(CRIT.Kc, CRIT.Ki);
+  const critJ = evalPerformance(simCrit, P.metric);
   const critMae = evalPerformance(simCrit, 'IAE') / P.dur;
+
+  // Função sem restrição de Ti apenas para visualização da superfície ao redor do ótimo
+  const vizFn = (kp, ki) => {
+    if (kp <= 1e-6 || ki <= 1e-7) return 1e12;
+    const s = simulateClosedLoop(kp, ki, P.Kd_c, null, false, true);
+    if (!isSimStable(s)) return 1e12;
+    return evalPerformance(s, P.metric);
+  };
 
   // 3. Constrói a grade 25x25 SIMÉTRICA E CENTRADA NO PONTO ÓTIMO (índice central = 12)
   const span = P.spanPct;
@@ -654,7 +669,7 @@ function runOptimization(){
   for (let j = 0; j < nGrid; j++) {
     const row = [];
     for (let i = 0; i < nGrid; i++) {
-      row.push(objFn(xVals[i], zVals[j]));
+      row.push(vizFn(xVals[i], zVals[j]));
     }
     yGrid.push(row);
   }
@@ -1118,7 +1133,7 @@ function syncButtons(){
 }
 
 /* ---------- ciclo principal ---------- */
-function recompute(newNoise, resetCrit){
+function recompute(newNoise, resetCrit, syncOpt){
   read();
   const errs = validate();
   const eb = $('errors');
@@ -1148,6 +1163,7 @@ function recompute(newNoise, resetCrit){
   if (tp > P.dur) tp = P.dur;
   prevDur = P.dur;
   chartTpDrawn = -2; updateCharts(); syncButtons();
+  if (syncOpt) runOptimization();
   return true;
 }
 
@@ -1159,30 +1175,31 @@ function preset(kind){
   if (kind === 'both') { $('dsp').value = 120; $('tSP').value = 10; $('drho').value = -0.25; $('tD').value = 95; $('dur').value = 180; }
   document.querySelectorAll('[data-preset]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.preset === kind)));
   playing = false;
-  if (recompute(true, false)) { tp = P.dur; chartTpDrawn = -2; updateCharts(); syncButtons(); }
+  if (recompute(true, false, true)) { tp = P.dur; chartTpDrawn = -2; updateCharts(); syncButtons(); }
 }
 
 /* eventos */
 ids.forEach(id => $(id).addEventListener('input', () => {
   const plantChanged = ['L','v','Qmax','tau','taud','u0','rho0'].includes(id);
-  recompute(false, plantChanged);
+  const gainChanged = ['Kc','Ki','Kd_c','noise'].includes(id);
+  recompute(false, plantChanged, !gainChanged);
 }));
-['spOn','ldOn','ctrlMode'].forEach(id => $(id).addEventListener('change', () => recompute(false, false)));
-$('Tslider').addEventListener('input', e => { $('T').value = e.target.value; recompute(false, false); });
-$('useSuggested').addEventListener('click', () => { $('T').value = +SR.Tsug.toPrecision(6); recompute(false, false); });
-$('btnCrit').addEventListener('click', () => { recompute(false, true); });
+['spOn','ldOn','ctrlMode'].forEach(id => $(id).addEventListener('change', () => recompute(false, false, id !== 'ctrlMode')));
+$('Tslider').addEventListener('input', e => { $('T').value = e.target.value; recompute(false, false, true); });
+$('useSuggested').addEventListener('click', () => { $('T').value = +SR.Tsug.toPrecision(6); recompute(false, false, true); });
+$('btnCrit').addEventListener('click', () => { recompute(false, true, false); });
 $('btnApplyOpt').addEventListener('click', () => {
   if (!OPT) return;
   $('Kc').value = +OPT.optPt.kp.toPrecision(5);
   $('Ki').value = +OPT.optPt.ki.toPrecision(5);
   $('ctrlMode').value = 'auto';
-  recompute(false, false);
+  recompute(false, false, false);
 });
 $('runOpt').addEventListener('click', () => runOptimization());
 $('optAxis2D').addEventListener('change', () => updateOpt2DChart());
 document.querySelectorAll('[data-preset]').forEach(b => b.addEventListener('click', () => preset(b.dataset.preset)));
 $('run').addEventListener('click', () => {
-  if (!recompute(true, false)) return;
+  if (!recompute(true, false, false)) return;
   if (speedVal() === 0) { tp = P.dur; playing = false; }
   else { tp = 0; playing = true; }
   chartTpDrawn = -2; updateCharts(); syncButtons();
@@ -1196,9 +1213,8 @@ window.addEventListener('resize', drawBelt);
 readColors();
 makeCharts();
 if (reduceMotion) $('speed').value = '0';
-recompute(true, true);
+recompute(true, true, true);
 tp = P.dur; updateCharts(); syncButtons();
-runOptimization();
 requestAnimationFrame(loop);
 })();
 </script>
